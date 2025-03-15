@@ -18,20 +18,24 @@ $githubScriptUrl = "https://raw.githubusercontent.com/RitzySixx/Optimizer/refs/h
 $currentScript = $MyInvocation.MyCommand.Path
 
 # Check for updates
-$latestVersion = ((Invoke-WebRequest -Uri $githubScriptUrl).Content).Trim()
-$currentVersion = (Get-Content -Path $currentScript -Raw).Trim()
+try {
+    $latestVersion = ((Invoke-WebRequest -Uri $githubScriptUrl).Content).Trim()
+    $currentVersion = (Get-Content -Path $currentScript -Raw).Trim()
 
-# Convert both to same line endings
-$latestVersion = $latestVersion -replace "`r`n", "`n"
-$currentVersion = $currentVersion -replace "`r`n", "`n"
+    # Convert both to same line endings
+    $latestVersion = $latestVersion -replace "`r`n", "`n"
+    $currentVersion = $currentVersion -replace "`r`n", "`n"
 
-if ($latestVersion -ne $currentVersion) {
-    Write-Host "Update found! Downloading latest version..." -ForegroundColor Green
-    $latestVersion | Set-Content -Path $currentScript -NoNewline
-    Write-Host "Update complete! Script will restart in 5 seconds..." -ForegroundColor Green
-    Start-Sleep -Seconds 5
-    & $currentScript
-    exit
+    if ($latestVersion -ne $currentVersion) {
+        Write-Host "Update found! Downloading latest version..." -ForegroundColor Green
+        $latestVersion | Out-File -FilePath $currentScript -Force -Encoding UTF8
+        Write-Host "Update complete! Script will restart in 5 seconds..." -ForegroundColor Green
+        Start-Sleep -Seconds 5
+        & $currentScript
+        exit
+    }
+} catch {
+    Write-Host "Unable to check for updates. Continuing with current version..." -ForegroundColor Yellow
 }
 
 # Registry backup and restore point setup
