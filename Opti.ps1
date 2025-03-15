@@ -11,6 +11,25 @@ $global:InformationPreference = 'SilentlyContinue'
 $global:WarningPreference = 'SilentlyContinue'
 $global:ErrorActionPreference = 'SilentlyContinue'
 
+# Define the GitHub raw file URL
+$githubScriptUrl = "https://raw.githubusercontent.com/RitzySixx/Optimizer/refs/heads/main/Opti.ps1"
+
+# Get the current script path
+$currentScript = $MyInvocation.MyCommand.Path
+
+# Check for updates
+$latestVersion = (Invoke-WebRequest -Uri $githubScriptUrl).Content
+$currentVersion = Get-Content -Path $currentScript -Raw
+
+if ($latestVersion -ne $currentVersion) {
+    Write-Host "Update found! Downloading latest version..." -ForegroundColor Green
+    $latestVersion | Set-Content -Path $currentScript
+    Write-Host "Update complete! Script will restart in 5 seconds..." -ForegroundColor Green
+    Start-Sleep -Seconds 5
+    & $currentScript
+    exit
+}
+
 # Registry backup and restore point setup
 $backupPath = "C:\RegistryBackup"
 $registryBackup = Join-Path $backupPath "RegistryBackup.reg"
