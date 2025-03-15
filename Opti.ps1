@@ -1230,7 +1230,8 @@ $cleanupTasks = @{
                                         • Added Dark/Light Theme Toggle<LineBreak/>
                                         • Implemented App Installation System<LineBreak/>
                                         • Added Multiple Categories Support<LineBreak/>
-                                        • Enhanced UI/UX Design
+                                        • Enhanced UI/UX Design<LineBreak/>
+                                        • Added System Cleanup
                                     </TextBlock>
                                 </StackPanel>
                             </Border>
