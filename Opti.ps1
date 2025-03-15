@@ -22,10 +22,6 @@ try {
     $latestVersion = ((Invoke-WebRequest -Uri $githubScriptUrl).Content).Trim()
     $currentVersion = (Get-Content -Path $currentScript -Raw).Trim()
 
-    # Convert both to same line endings
-    $latestVersion = $latestVersion -replace "`r`n", "`n"
-    $currentVersion = $currentVersion -replace "`r`n", "`n"
-
     if ($latestVersion -ne $currentVersion) {
         Write-Host "Update found! Downloading latest version..." -ForegroundColor Green
         $latestVersion | Out-File -FilePath $currentScript -Force -Encoding UTF8
