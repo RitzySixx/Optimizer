@@ -25,9 +25,9 @@ try {
     if ($latestVersion -ne $currentVersion) {
         Write-Host "Update found! Downloading latest version..." -ForegroundColor Green
         $latestVersion | Out-File -FilePath $currentScript -Force -Encoding UTF8
-        Write-Host "Update complete! Script will restart in 10 seconds..." -ForegroundColor Green
+        Write-Host "Script will restart once Update is Complete..." -ForegroundColor Green
         Start-Sleep -Seconds 10
-        & $currentScript
+        Start-Process powershell.exe -ArgumentList "-NoExit -File `"$currentScript`""
         exit
     }
 } catch {
