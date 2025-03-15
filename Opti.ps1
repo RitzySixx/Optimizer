@@ -12,7 +12,7 @@ $global:WarningPreference = 'SilentlyContinue'
 $global:ErrorActionPreference = 'SilentlyContinue'
 
 # Define the GitHub raw file URL
-$githubScriptUrl = "https://raw.githubusercontent.com/yourusername/yourrepo/main/yourscript.ps1"
+$githubScriptUrl = "https://raw.githubusercontent.com/RitzySixx/Optimizer/refs/heads/main/Opti.ps1"
 
 # Get the current script path
 $currentScript = $MyInvocation.MyCommand.Path
