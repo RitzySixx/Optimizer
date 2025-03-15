@@ -12,18 +12,22 @@ $global:WarningPreference = 'SilentlyContinue'
 $global:ErrorActionPreference = 'SilentlyContinue'
 
 # Define the GitHub raw file URL
-$githubScriptUrl = "https://raw.githubusercontent.com/RitzySixx/Optimizer/refs/heads/main/Opti.ps1"
+$githubScriptUrl = "https://raw.githubusercontent.com/yourusername/yourrepo/main/yourscript.ps1"
 
 # Get the current script path
 $currentScript = $MyInvocation.MyCommand.Path
 
 # Check for updates
-$latestVersion = (Invoke-WebRequest -Uri $githubScriptUrl).Content
-$currentVersion = Get-Content -Path $currentScript -Raw
+$latestVersion = ((Invoke-WebRequest -Uri $githubScriptUrl).Content).Trim()
+$currentVersion = (Get-Content -Path $currentScript -Raw).Trim()
+
+# Convert both to same line endings
+$latestVersion = $latestVersion -replace "`r`n", "`n"
+$currentVersion = $currentVersion -replace "`r`n", "`n"
 
 if ($latestVersion -ne $currentVersion) {
     Write-Host "Update found! Downloading latest version..." -ForegroundColor Green
-    $latestVersion | Set-Content -Path $currentScript
+    $latestVersion | Set-Content -Path $currentScript -NoNewline
     Write-Host "Update complete! Script will restart in 5 seconds..." -ForegroundColor Green
     Start-Sleep -Seconds 5
     & $currentScript
