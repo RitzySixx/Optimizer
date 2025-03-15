@@ -25,8 +25,8 @@ try {
     if ($latestVersion -ne $currentVersion) {
         Write-Host "Update found! Downloading latest version..." -ForegroundColor Green
         $latestVersion | Out-File -FilePath $currentScript -Force -Encoding UTF8
-        Write-Host "Update complete! Script will restart in 5 seconds..." -ForegroundColor Green
-        Start-Sleep -Seconds 5
+        Write-Host "Update complete! Script will restart in 10 seconds..." -ForegroundColor Green
+        Start-Sleep -Seconds 10
         & $currentScript
         exit
     }
