@@ -1,16 +1,3 @@
-# Redirect and suppress all output
-$script:UIOutput = New-Object System.IO.StringWriter
-$script:restorePointCreated = $false
-[Console]::SetOut($script:UIOutput)
-
-# Set all preferences to silent
-$global:ProgressPreference = 'SilentlyContinue'
-$global:VerbosePreference = 'SilentlyContinue'
-$global:DebugPreference = 'SilentlyContinue'
-$global:InformationPreference = 'SilentlyContinue'
-$global:WarningPreference = 'SilentlyContinue'
-$global:ErrorActionPreference = 'SilentlyContinue'
-
 # Define the GitHub raw file URL
 $githubScriptUrl = "https://raw.githubusercontent.com/RitzySixx/Optimizer/refs/heads/main/Opti.ps1"
 
@@ -33,6 +20,19 @@ try {
 } catch {
     Write-Host "Unable to check for updates. Continuing with current version..." -ForegroundColor Yellow
 }
+
+# Redirect and suppress all output
+$script:UIOutput = New-Object System.IO.StringWriter
+$script:restorePointCreated = $false
+[Console]::SetOut($script:UIOutput)
+
+# Set all preferences to silent
+$global:ProgressPreference = 'SilentlyContinue'
+$global:VerbosePreference = 'SilentlyContinue'
+$global:DebugPreference = 'SilentlyContinue'
+$global:InformationPreference = 'SilentlyContinue'
+$global:WarningPreference = 'SilentlyContinue'
+$global:ErrorActionPreference = 'SilentlyContinue'
 
 # Registry backup and restore point setup
 $backupPath = "C:\RegistryBackup"
@@ -103,64 +103,48 @@ Add-Type -AssemblyName PresentationFramework
 # Apps Data Structure
 $apps = @{
     "Chrome" = @{
-        category = "Browsers"
-        choco = "googlechrome"
         content = "Chrome"
         description = "Google Chrome is a widely used web browser known for its speed, simplicity, and seamless integration with Google services."
         link = "https://www.google.com/chrome/"
         winget = "Google.Chrome"
     }
     "Firefox" = @{
-        category = "Browsers"
-        choco = "firefox"
         content = "Firefox"
         description = "Mozilla Firefox is a fast, privacy-focused browser with extensive customization options."
         link = "https://www.mozilla.org/firefox/"
         winget = "Mozilla.Firefox"
     }
     "Brave" = @{
-        category = "Browsers"
-        choco = "brave"
         content = "Brave"
         description = "Brave is a privacy-focused web browser that blocks ads and trackers, offering a faster and safer browsing experience."
         link = "https://www.brave.com"
         winget = "Brave.Brave"
     }
     "Discord" = @{
-        category = "Communications"
-        choco = "discord"
         content = "Discord"
         description = "Discord is a popular platform for chat, voice, and video communication."
         link = "https://discord.com/"
         winget = "Discord.Discord"
     }
     "Steam" = @{
-        category = "Games"
-        choco = "steam"
         content = "Steam"
         description = "Steam is the ultimate destination for playing, discussing, and creating games."
         link = "https://store.steampowered.com/"
         winget = "Valve.Steam"
     }
     "7-Zip" = @{
-        category = "Utilities"
-        choco = "7zip"
         content = "7-Zip"
         description = "7-Zip is a file archiver with a high compression ratio and strong encryption."
         link = "https://7-zip.org/"
         winget = "7zip.7zip"
     }
     "WinRAR" = @{
-        category = "Utilities"
-        choco = "winrar"
         content = "WinRAR"
         description = "WinRAR is a powerful archive manager that allows you to create, manage, and extract compressed files."
         link = "https://www.win-rar.com/"
         winget = "RARLab.WinRAR"
     }
     "OneDrive" = @{
-        category = "Microsoft Tools"
-        choco = "onedrive"
         content = "OneDrive"
         description = "OneDrive is a cloud storage service provided by Microsoft, allowing users to store and share files securely across devices."
         link = "https://onedrive.live.com/"
@@ -168,9 +152,236 @@ $apps = @{
     }
 }
 
+$debloatItems = @{
+"Remove OneDrive" = @{
+    content = "Remove OneDrive"
+    description = "Will be uninstalled. Cloud storage service for file syncing, backup and sharing across devices."
+    action = {
+        Write-Host "Starting OneDrive Removal Process..." -ForegroundColor Cyan
+        
+        # Kill OneDrive process
+        taskkill /f /im OneDrive.exe
+        
+        # Migrate OneDrive files to local folders
+        $oneDrivePath = "$env:USERPROFILE\OneDrive"
+        if (Test-Path $oneDrivePath) {
+            Write-Host "Moving OneDrive files to local folders..." -ForegroundColor Yellow
+            Move-Item -Path "$oneDrivePath\*" -Destination "$env:USERPROFILE" -Force
+            Write-Host "Files moved successfully!" -ForegroundColor Green
+        }
+        
+        # Uninstall OneDrive
+        $uninstaller = "$env:SystemRoot\SysWOW64\OneDriveSetup.exe"
+        if (Test-Path $uninstaller) {
+            Write-Host "Uninstalling OneDrive..." -ForegroundColor Yellow
+            Start-Process $uninstaller "/uninstall" -NoNewWindow -Wait
+        }
+        
+        # Remove OneDrive leftovers
+        Remove-Item -Path "$env:USERPROFILE\OneDrive" -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -Path "C:\OneDriveTemp" -Recurse -Force -ErrorAction SilentlyContinue
+        
+        # Remove OneDrive from Explorer
+        $regKeys = @(
+            "HKCR:\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}",
+            "HKCR:\Wow6432Node\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}"
+        )
+        foreach ($key in $regKeys) {
+            if (Test-Path $key) {
+                New-ItemProperty -Path $key -Name "System.IsPinnedToNameSpaceTree" -Value 0 -PropertyType DWORD -Force
+            }
+        }
+        
+        # Prevent OneDrive from reinstalling
+        $regPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\OneDrive"
+        if (!(Test-Path $regPath)) {
+            New-Item -Path $regPath -Force
+        }
+        New-ItemProperty -Path $regPath -Name "DisableFileSyncNGSC" -Value 1 -PropertyType DWORD -Force
+        
+        Write-Host "OneDrive has been completely removed and blocked from reinstalling!" -ForegroundColor Green
+        }
+    }   
+        
+    "RemoveOutlook" = @{
+        content = "Remove Outlook"
+        description = "Will be uninstalled. Default Windows email client for mail, calendar, contacts and task management"
+        action = {
+            Write-Host "`nStarting Outlook Removal Process..." -ForegroundColor Cyan
+            
+            # Kill all Outlook processes
+            taskkill /F /IM outlook.exe /T
+            
+            # Remove via multiple methods for complete uninstallation
+            winget uninstall "Microsoft.OutlookForWindows"
+            Get-AppxPackage -Name "Microsoft.OutlookForWindows" -AllUsers | Remove-AppxPackage -AllUsers
+            Get-AppxPackage -Name "Microsoft.Office.Outlook" -AllUsers | Remove-AppxPackage -AllUsers
+            
+            # Remove using DISM
+            $packages = DISM /Online /Get-ProvisionedAppxPackages | Select-String "PackageName.*outlook"
+            foreach ($package in $packages) {
+                $packageName = ($package -split ": ")[1]
+                DISM /Online /Remove-ProvisionedAppxPackage /PackageName:$packageName
+            }
+            
+            # Clean installation directories
+            $outlookPaths = @(
+                "$env:LOCALAPPDATA\Microsoft\WindowsApps\Microsoft.OutlookForWindows_8wekyb3d8bbwe",
+                "$env:PROGRAMFILES\Microsoft Office\root\Office16\OUTLOOK.EXE",
+                "$env:PROGRAMFILES (x86)\Microsoft Office\root\Office16\OUTLOOK.EXE",
+                "$env:LOCALAPPDATA\Microsoft\Office\16.0\Outlook",
+                "$env:APPDATA\Microsoft\Outlook"
+            )
+            foreach ($path in $outlookPaths) {
+                Remove-Item -Path $path -Recurse -Force -ErrorAction SilentlyContinue
+            }
+            
+            # Block reinstallation and clean registry
+            $regPaths = @(
+                "HKLM:\SOFTWARE\Microsoft\Office\ClickToRun\REGISTRY\MACHINE\Software\Microsoft\Office\Outlook",
+                "HKCU:\Software\Microsoft\Office\Outlook",
+                "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\OUTLOOK.EXE"
+            )
+            foreach ($path in $regPaths) {
+                Remove-Item -Path $path -Recurse -Force -ErrorAction SilentlyContinue
+            }
+            
+            Write-Host "Outlook has been completely removed!" -ForegroundColor Green
+        }
+    }
+    "RemoveTeams" = @{
+        content = "Remove Teams"
+        description = "Will be uninstalled. Video meetings, chat, calls, collaboration and file sharing platform"
+        action = {
+            Write-Host "`nStarting Teams Removal Process..." -ForegroundColor Cyan
+            
+            # Kill Teams processes
+            taskkill /F /IM Teams.exe /T
+            
+            # Multiple removal methods
+            winget uninstall "Microsoft Teams"
+            Get-AppxPackage -Name "*Teams*" -AllUsers | Remove-AppxPackage -AllUsers
+            
+            # Remove Teams Machine-Wide Installer
+            $TeamsPath = [System.IO.Path]::Combine($env:ProgramFiles, 'Teams Installer')
+            if (Test-Path $TeamsPath) {
+                Start-Process -FilePath "$TeamsPath\Teams.exe" -ArgumentList "-uninstall -s" -Wait
+            }
+            
+            # Clean installation directories
+            $teamsPaths = @(
+                "$env:LOCALAPPDATA\Microsoft\Teams",
+                "$env:PROGRAMFILES\Microsoft\Teams",
+                "$env:PROGRAMFILES(x86)\Microsoft\Teams",
+                "$env:APPDATA\Microsoft\Teams",
+                "$env:PROGRAMDATA\Microsoft\Teams",
+                "$env:LOCALAPPDATA\Microsoft\TeamsMeetingAddin",
+                "$env:LOCALAPPDATA\Microsoft\TeamsPresenceAddin"
+            )
+            foreach ($path in $teamsPaths) {
+                Remove-Item -Path $path -Recurse -Force -ErrorAction SilentlyContinue
+            }
+            
+            # Clean registry
+            $registryPaths = @(
+                "HKCU:\Software\Microsoft\Office\Teams",
+                "HKLM:\SOFTWARE\Microsoft\Teams",
+                "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Teams"
+            )
+            foreach ($path in $registryPaths) {
+                Remove-Item -Path $path -Recurse -Force -ErrorAction SilentlyContinue
+            }
+            
+            Write-Host "Teams has been completely removed!" -ForegroundColor Green
+        }
+    }
+    "RemoveSolitaire" = @{
+        content = "Remove Solitaire"
+        description = "Will be uninstalled. Collection of card games including Solitaire, Spider, FreeCell with daily challenges"
+        action = {
+            Write-Host "`nStarting Solitaire Removal Process..." -ForegroundColor Cyan
+            
+            # Kill Solitaire processes
+            taskkill /F /IM "Microsoft.MicrosoftSolitaireCollection*" /T
+            
+            # Multiple removal methods
+            winget uninstall "Microsoft Solitaire Collection"
+            Get-AppxPackage -Name "Microsoft.MicrosoftSolitaireCollection" -AllUsers | Remove-AppxPackage -AllUsers
+            
+            # Remove using DISM
+            DISM /Online /Remove-ProvisionedAppxPackage /PackageName:Microsoft.MicrosoftSolitaireCollection_8wekyb3d8bbwe
+            
+            # Clean installation directories
+            Remove-Item -Path "$env:LOCALAPPDATA\Packages\Microsoft.MicrosoftSolitaireCollection*" -Recurse -Force
+            
+            # Block reinstallation
+            $regPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Microsoft.MicrosoftSolitaireCollection"
+            Remove-Item -Path $regPath -Recurse -Force -ErrorAction SilentlyContinue
+            
+            Write-Host "Solitaire Collection has been completely removed!" -ForegroundColor Green
+        }
+    }
+    "RemoveCortana" = @{
+        content = "Remove Cortana"
+        description = "Will be uninstalled. Voice assistant for searches, reminders, system control and web queries"
+        action = {
+            Write-Host "`nStarting Cortana Removal Process..." -ForegroundColor Cyan
+            
+            # Kill Cortana processes
+            taskkill /F /IM "RuntimeBroker.exe" /T
+            taskkill /F /IM "SearchUI.exe" /T
+            
+            # Multiple removal methods
+            winget uninstall "Cortana"
+            Get-AppxPackage -Name "Microsoft.549981C3F5F10" -AllUsers | Remove-AppxPackage -AllUsers
+            Get-AppxPackage -Name "*Cortana*" -AllUsers | Remove-AppxPackage -AllUsers
+            
+            # Remove using DISM
+            DISM /Online /Remove-ProvisionedAppxPackage /PackageName:Microsoft.549981C3F5F10_8wekyb3d8bbwe
+            
+            # Disable through registry
+            $regPaths = @(
+                "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search",
+                "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Search",
+                "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer"
+            )
+            foreach ($path in $regPaths) {
+                if (!(Test-Path $path)) { New-Item -Path $path -Force }
+                Set-ItemProperty -Path $path -Name "AllowCortana" -Value 0 -Type DWord -Force
+                Set-ItemProperty -Path $path -Name "DisableWebSearch" -Value 1 -Type DWord -Force
+            }
+            
+            Write-Host "Cortana has been completely removed!" -ForegroundColor Green
+        }
+    }
+    "RemoveLinkedIn" = @{
+        content = "Remove LinkedIn"
+        description = "Will be uninstalled. Professional networking, job searching and business news platform"
+        action = {
+            Write-Host "`nStarting LinkedIn Removal Process..." -ForegroundColor Cyan
+            
+            # Kill LinkedIn processes
+            taskkill /F /IM "LinkedIn*" /T
+            
+            # Multiple removal methods
+            winget uninstall "LinkedIn"
+            Get-AppxPackage -Name "Microsoft.LinkedIn" -AllUsers | Remove-AppxPackage -AllUsers
+            Get-AppxPackage -Name "*LinkedIn*" -AllUsers | Remove-AppxPackage -AllUsers
+            
+            # Remove using DISM
+            DISM /Online /Remove-ProvisionedAppxPackage /PackageName:Microsoft.LinkedIn_8wekyb3d8bbwe
+            
+            # Clean installation directories
+            Remove-Item -Path "$env:LOCALAPPDATA\Packages\Microsoft.LinkedIn*" -Recurse -Force
+            Remove-Item -Path "$env:PROGRAMFILES\WindowsApps\Microsoft.LinkedIn*" -Recurse -Force
+            
+            Write-Host "LinkedIn has been completely removed!" -ForegroundColor Green
+        }
+    }
+}
+
 $optimizations = @{
     "Ping Optimization" = @{
-        category = "Performance"
         content = "Ping / Latency Optimizer"
         description = "Comprehensive Ping optimization for better ping and reduced latency"
         action = {
@@ -331,7 +542,6 @@ $optimizations = @{
             }
         }
     "FPS Boost" = @{
-    category = "Performance"
     content = "FPS Tweaks"
     description = "Comprehensive system optimizations including memory management, GPU performance, and privacy settings"
     action = {
@@ -486,368 +696,216 @@ $optimizations = @{
             }
         }
     }
-        
-"Remove OneDrive" = @{
-    category = "Debloat Windows"
-    content = "Remove OneDrive"
-    description = "Completely removes OneDrive, migrates files to local folders, and prevents it from reinstalling"
+"Mouse Optimization" = @{
+    content = "Mouse Optimization"
+    description = "Ultimate Mouse Optimization - Zero Processing, Pure Raw Input!"
     action = {
-        Write-Host "Starting OneDrive Removal Process..." -ForegroundColor Cyan
-        
-        # Kill OneDrive process
-        taskkill /f /im OneDrive.exe
-        
-        # Migrate OneDrive files to local folders
-        $oneDrivePath = "$env:USERPROFILE\OneDrive"
-        if (Test-Path $oneDrivePath) {
-            Write-Host "Moving OneDrive files to local folders..." -ForegroundColor Yellow
-            Move-Item -Path "$oneDrivePath\*" -Destination "$env:USERPROFILE" -Force
-            Write-Host "Files moved successfully!" -ForegroundColor Green
-        }
-        
-        # Uninstall OneDrive
-        $uninstaller = "$env:SystemRoot\SysWOW64\OneDriveSetup.exe"
-        if (Test-Path $uninstaller) {
-            Write-Host "Uninstalling OneDrive..." -ForegroundColor Yellow
-            Start-Process $uninstaller "/uninstall" -NoNewWindow -Wait
-        }
-        
-        # Remove OneDrive leftovers
-        Remove-Item -Path "$env:USERPROFILE\OneDrive" -Recurse -Force -ErrorAction SilentlyContinue
-        Remove-Item -Path "C:\OneDriveTemp" -Recurse -Force -ErrorAction SilentlyContinue
-        
-        # Remove OneDrive from Explorer
-        $regKeys = @(
-            "HKCR:\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}",
-            "HKCR:\Wow6432Node\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}"
-        )
-        foreach ($key in $regKeys) {
-            if (Test-Path $key) {
-                New-ItemProperty -Path $key -Name "System.IsPinnedToNameSpaceTree" -Value 0 -PropertyType DWORD -Force
-            }
-        }
-        
-        # Prevent OneDrive from reinstalling
-        $regPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\OneDrive"
-        if (!(Test-Path $regPath)) {
-            New-Item -Path $regPath -Force
-        }
-        New-ItemProperty -Path $regPath -Name "DisableFileSyncNGSC" -Value 1 -PropertyType DWORD -Force
-        
-        Write-Host "OneDrive has been completely removed and blocked from reinstalling!" -ForegroundColor Green
-        }
-    }   
+        Write-Host "`nOptimizing Mouse Settings..." -ForegroundColor Cyan
 
-    "services" = @{
-    category = "Performance"
-    content = "Set Services to Manual"
-    description = "Sets various non-essential system services to manual, allowing them to start only when required. This helps free up resources without disrupting functionality, as needed services will launch automatically when required."
-    action = {
-        Write-Host "Setting services to their optimized state..." -ForegroundColor Cyan
+        # Mouse Curve Settings for perfect 1:1 tracking
+        $mouseCurveX = [byte[]](0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+                              0xC0,0xCC,0x0C,0x00,0x00,0x00,0x00,0x00,
+                              0x80,0x99,0x19,0x00,0x00,0x00,0x00,0x00,
+                              0x40,0x66,0x26,0x00,0x00,0x00,0x00,0x00,
+                              0x00,0x33,0x33,0x00,0x00,0x00,0x00,0x00)
         
-        $services = @(
-            @{ Name = "AJRouter"; StartupType = "Disabled"; OriginalType = "Manual" },
-            @{ Name = "ALG"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "AppIDSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "AppMgmt"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "AppReadiness"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "AppVClient"; StartupType = "Disabled"; OriginalType = "Disabled" },
-            @{ Name = "AppXSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "Appinfo"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "AssignedAccessManagerSvc"; StartupType = "Disabled"; OriginalType = "Manual" },
-            @{ Name = "AudioEndpointBuilder"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "AudioSrv"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "Audiosrv"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "AxInstSV"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "BDESVC"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "BFE"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "BITS"; StartupType = "AutomaticDelayedStart"; OriginalType = "Automatic" },
-            @{ Name = "BTAGService"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "BcastDVRUserService_*"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "BluetoothUserService_*"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "BrokerInfrastructure"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "Browser"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "BthAvctpSvc"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "BthHFSrv"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "CDPSvc"; StartupType = "Manual"; OriginalType = "Automatic" },
-            @{ Name = "CDPUserSvc_*"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "COMSysApp"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "CaptureService_*"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "CertPropSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "ClipSVC"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "ConsentUxUserSvc_*"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "CoreMessagingRegistrar"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "CredentialEnrollmentManagerUserSvc_*"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "CryptSvc"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "CscService"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "DPS"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "DcomLaunch"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "DcpSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "DevQueryBroker"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "DeviceAssociationBrokerSvc_*"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "DeviceAssociationService"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "DeviceInstall"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "DevicePickerUserSvc_*"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "DevicesFlowUserSvc_*"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "Dhcp"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "DiagTrack"; StartupType = "Disabled"; OriginalType = "Automatic" },
-            @{ Name = "DialogBlockingService"; StartupType = "Disabled"; OriginalType = "Disabled" },
-            @{ Name = "DispBrokerDesktopSvc"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "DisplayEnhancementService"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "DmEnrollmentSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "Dnscache"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "DoSvc"; StartupType = "AutomaticDelayedStart"; OriginalType = "Automatic" },
-            @{ Name = "DsSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "DsmSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "DusmSvc"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "EFS"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "EapHost"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "EntAppSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "EventLog"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "EventSystem"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "FDResPub"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "Fax"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "FontCache"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "FrameServer"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "FrameServerMonitor"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "GraphicsPerfSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "HomeGroupListener"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "HomeGroupProvider"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "HvHost"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "IEEtwCollectorService"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "IKEEXT"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "InstallService"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "InventorySvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "IpxlatCfgSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "KeyIso"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "KtmRm"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "LSM"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "LanmanServer"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "LanmanWorkstation"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "LicenseManager"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "LxpSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "MSDTC"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "MSiSCSI"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "MapsBroker"; StartupType = "AutomaticDelayedStart"; OriginalType = "Automatic" },
-            @{ Name = "McpManagementService"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "MessagingService_*"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "MicrosoftEdgeElevationService"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "MixedRealityOpenXRSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "MpsSvc"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "MsKeyboardFilter"; StartupType = "Manual"; OriginalType = "Disabled" },
-            @{ Name = "NPSMSvc_*"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "NaturalAuthentication"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "NcaSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "NcbService"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "NcdAutoSetup"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "NetSetupSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "NetTcpPortSharing"; StartupType = "Disabled"; OriginalType = "Disabled" },
-            @{ Name = "Netlogon"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "Netman"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "NgcCtnrSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "NgcSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "NlaSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "OneSyncSvc_*"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "P9RdrService_*"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "PNRPAutoReg"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "PNRPsvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "PcaSvc"; StartupType = "Manual"; OriginalType = "Automatic" },
-            @{ Name = "PeerDistSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "PenService_*"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "PerfHost"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "PhoneSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "PimIndexMaintenanceSvc_*"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "PlugPlay"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "PolicyAgent"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "Power"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "PrintNotify"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "PrintWorkflowUserSvc_*"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "ProfSvc"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "PushToInstall"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "QWAVE"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "RasAuto"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "RasMan"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "RemoteAccess"; StartupType = "Disabled"; OriginalType = "Disabled" },
-            @{ Name = "RemoteRegistry"; StartupType = "Disabled"; OriginalType = "Disabled" },
-            @{ Name = "RetailDemo"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "RmSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "RpcEptMapper"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "RpcLocator"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "RpcSs"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "SCPolicySvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "SCardSvr"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "SDRSVC"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "SEMgrSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "SENS"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "SNMPTRAP"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "SNMPTrap"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "SSDPSRV"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "SamSs"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "ScDeviceEnum"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "Schedule"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "SecurityHealthService"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "Sense"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "SensorDataService"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "SensorService"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "SensrSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "SessionEnv"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "SgrmBroker"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "SharedAccess"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "SharedRealitySvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "ShellHWDetection"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "SmsRouter"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "Spooler"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "SstpSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "StateRepository"; StartupType = "Manual"; OriginalType = "Automatic" },
-            @{ Name = "StiSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "StorSvc"; StartupType = "Manual"; OriginalType = "Automatic" },
-            @{ Name = "SysMain"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "SystemEventsBroker"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "TabletInputService"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "TapiSrv"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "TermService"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "TextInputManagementService"; StartupType = "Manual"; OriginalType = "Automatic" },
-            @{ Name = "Themes"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "TieringEngineService"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "TimeBroker"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "TimeBrokerSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "TokenBroker"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "TrkWks"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "TroubleshootingSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "TrustedInstaller"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "UI0Detect"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "UdkUserSvc_*"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "UevAgentService"; StartupType = "Disabled"; OriginalType = "Disabled" },
-            @{ Name = "UmRdpService"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "UnistoreSvc_*"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "UserDataSvc_*"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "UserManager"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "UsoSvc"; StartupType = "Manual"; OriginalType = "Automatic" },
-            @{ Name = "VGAuthService"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "VMTools"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "VSS"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "VacSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "VaultSvc"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "W32Time"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "WEPHOSTSVC"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "WFDSConMgrSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "WMPNetworkSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "WManSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "WPDBusEnum"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "WSService"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "WSearch"; StartupType = "AutomaticDelayedStart"; OriginalType = "Automatic" },
-            @{ Name = "WaaSMedicSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "WalletService"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "WarpJITSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "WbioSrvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "Wcmsvc"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "WcsPlugInService"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "WdNisSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "WdiServiceHost"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "WdiSystemHost"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "WebClient"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "Wecsvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "WerSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "WiaRpc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "WinDefend"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "WinHttpAutoProxySvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "WinRM"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "Winmgmt"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "WlanSvc"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "WpcMonSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "WpnService"; StartupType = "Manual"; OriginalType = "Automatic" },
-            @{ Name = "WpnUserService_*"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "XblAuthManager"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "XblGameSave"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "XboxGipSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "XboxNetApiSvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "autotimesvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "bthserv"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "camsvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "cbdhsvc_*"; StartupType = "Manual"; OriginalType = "Automatic" },
-            @{ Name = "cloudidsvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "dcsvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "defragsvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "diagnosticshub.standardcollector.service"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "diagsvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "dmwappushservice"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "dot3svc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "edgeupdate"; StartupType = "Manual"; OriginalType = "Automatic" },
-            @{ Name = "edgeupdatem"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "embeddedmode"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "fdPHost"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "fhsvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "gpsvc"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "hidserv"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "icssvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "iphlpsvc"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "lfsvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "lltdsvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "lmhosts"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "mpssvc"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "msiserver"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "netprofm"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "nsi"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "p2pimsvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "p2psvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "perceptionsimulation"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "pla"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "seclogon"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "shpamsvc"; StartupType = "Disabled"; OriginalType = "Disabled" },
-            @{ Name = "smphost"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "spectrum"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "sppsvc"; StartupType = "AutomaticDelayedStart"; OriginalType = "Automatic" },
-            @{ Name = "ssh-agent"; StartupType = "Disabled"; OriginalType = "Disabled" },
-            @{ Name = "svsvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "swprv"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "tiledatamodelsvc"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "tzautoupdate"; StartupType = "Disabled"; OriginalType = "Disabled" },
-            @{ Name = "uhssvc"; StartupType = "Disabled"; OriginalType = "Disabled" },
-            @{ Name = "upnphost"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "vds"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "vm3dservice"; StartupType = "Manual"; OriginalType = "Automatic" },
-            @{ Name = "vmicguestinterface"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "vmicheartbeat"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "vmickvpexchange"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "vmicrdv"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "vmicshutdown"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "vmictimesync"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "vmicvmsession"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "vmicvss"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "vmvss"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "wbengine"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "wcncsvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "webthreatdefsvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "webthreatdefusersvc_*"; StartupType = "Automatic"; OriginalType = "Automatic" },
-            @{ Name = "wercplsupport"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "wisvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "wlidsvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "wlpasvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "wmiApSrv"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "workfolderssvc"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "wscsvc"; StartupType = "AutomaticDelayedStart"; OriginalType = "Automatic" },
-            @{ Name = "wuauserv"; StartupType = "Manual"; OriginalType = "Manual" },
-            @{ Name = "wudfsvc"; StartupType = "Manual"; OriginalType = "Manual" }
+        $mouseCurveY = [byte[]](0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+                              0x00,0x00,0x38,0x00,0x00,0x00,0x00,0x00,
+                              0x00,0x00,0x70,0x00,0x00,0x00,0x00,0x00,
+                              0x00,0x00,0xA8,0x00,0x00,0x00,0x00,0x00,
+                              0x00,0x00,0xE0,0x00,0x00,0x00,0x00,0x00)
+
+        # Enhanced Windows API functions for immediate updates
+        $source = @"
+        using System;
+        using System.Runtime.InteropServices;
+        public class Win32 {
+            [DllImport("user32.dll", SetLastError = true)]
+            public static extern bool SystemParametersInfo(uint uiAction, uint uiParam, IntPtr pvParam, uint fWinIni);
+            
+            [DllImport("user32.dll", SetLastError = true)]
+            public static extern bool SystemParametersInfo(uint uiAction, uint uiParam, int[] pvParam, uint fWinIni);
+            
+            [DllImport("user32.dll", SetLastError = true)]
+            public static extern bool SystemParametersInfo(uint uiAction, uint uiParam, ref MOUSEKEYS pvParam, uint fWinIni);
+
+            public const uint SPI_SETMOUSESPEED = 0x0071;
+            public const uint SPI_SETMOUSE = 0x0004;
+            public const uint SPI_SETMOUSECURVE = 0x0069;
+            public const uint SPI_SETMOUSEKEYS = 0x0037;
+            public const uint SPIF_UPDATEINIFILE = 0x01;
+            public const uint SPIF_SENDCHANGE = 0x02;
+            public const uint SPIF_SENDWININICHANGE = 0x02;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct MOUSEKEYS {
+            public uint cbSize;
+            public uint dwFlags;
+            public uint iMaxSpeed;
+            public uint iTimeToMaxSpeed;
+            public uint iCtrlSpeed;
+            public uint dwReserved1;
+            public uint dwReserved2;
+        }
+"@
+        Add-Type -TypeDefinition $source -Language CSharp
+
+        # Registry paths with immediate effect
+        $mousePaths = @(
+            "HKCU:\Control Panel\Mouse",
+            "HKU:\.DEFAULT\Control Panel\Mouse"
         )
-        foreach ($service in $services) {
-            if ($service.Name.Contains("*")) {
-                $baseServiceName = $service.Name.TrimEnd("*")
-                Get-Service | Where-Object { $_.Name -like "$baseServiceName*" } | ForEach-Object {
-                    Set-Service -Name $_.Name -StartupType $service.StartupType -ErrorAction SilentlyContinue
+
+        foreach ($path in $mousePaths) {
+            if (!(Test-Path $path)) {
+                New-Item -Path $path -Force | Out-Null
+            }
+
+            # Core mouse settings with forced update
+            $settings = @{
+                "MouseSpeed" = "0"
+                "MouseThreshold1" = "0"
+                "MouseThreshold2" = "0"
+                "MouseSensitivity" = "10"
+                "SmoothMouseXCurve" = $mouseCurveX
+                "SmoothMouseYCurve" = $mouseCurveY
+            }
+
+            foreach ($setting in $settings.GetEnumerator()) {
+                if ($setting.Key -like "*Curve") {
+                    Set-ItemProperty -Path $path -Name $setting.Key -Value $setting.Value -Type Binary -Force
+                    # Force immediate curve update
+                    [Win32]::SystemParametersInfo([Win32]::SPI_SETMOUSECURVE, 0, [IntPtr]::Zero, [Win32]::SPIF_SENDWININICHANGE)
+                } else {
+                    Set-ItemProperty -Path $path -Name $setting.Key -Value $setting.Value -Type String -Force
                 }
-            } else {
-                Set-Service -Name $service.Name -StartupType $service.StartupType -ErrorAction SilentlyContinue
             }
         }
-        
-        Write-Host "Services have been optimized successfully!" -ForegroundColor Green
+
+        # Direct system parameter updates
+        $mouseParams = @(0, 0, 0)
+        [Win32]::SystemParametersInfo([Win32]::SPI_SETMOUSE, 0, $mouseParams, [Win32]::SPIF_UPDATEINIFILE -bor [Win32]::SPIF_SENDWININICHANGE)
+        [Win32]::SystemParametersInfo([Win32]::SPI_SETMOUSESPEED, 0, [IntPtr]10, [Win32]::SPIF_UPDATEINIFILE -bor [Win32]::SPIF_SENDWININICHANGE)
+
+        # Multiple refresh commands to ensure changes take effect
+        Start-Process -FilePath "rundll32.exe" -ArgumentList "user32.dll,UpdatePerUserSystemParameters" -NoNewWindow -Wait
+        Start-Process -FilePath "rundll32.exe" -ArgumentList "user32.dll,UpdatePerUserSystemParameters 1, True" -NoNewWindow -Wait
+
+        Write-Host "Mouse settings optimized and applied in real-time!" -ForegroundColor Green
+        }
+    }
+"Keyboard Optimization" = @{
+    content = "Keyboard Optimization"
+    description = "Ultimate real-time keyboard optimization with absolute zero latency"
+    action = {
+        Write-Host "`nApplying Maximum Real-Time Keyboard Optimizations..." -ForegroundColor Cyan
+
+        # Enhanced Windows API for guaranteed real-time updates
+        $source = @"
+        using System;
+        using System.Runtime.InteropServices;
+        public class KeyboardUtils {
+            [DllImport("user32.dll", SetLastError = true)]
+            public static extern bool SystemParametersInfo(uint uiAction, uint uiParam, IntPtr pvParam, uint fWinIni);
+            
+            [DllImport("user32.dll")]
+            public static extern bool UpdatePerUserSystemParameters(int reserved1, bool reserved2);
+            
+            [DllImport("user32.dll")]
+            public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, UIntPtr wParam, IntPtr lParam, uint fuFlags, uint uTimeout, out UIntPtr lpdwResult);
+
+            public const uint SPI_SETKEYBOARDDELAY = 0x0017;
+            public const uint SPI_SETKEYBOARDSPEED = 0x000B;
+            public const uint SPIF_UPDATEINIFILE = 0x01;
+            public const uint SPIF_SENDCHANGE = 0x02;
+            public const uint WM_SETTINGCHANGE = 0x001A;
+        }
+"@
+        Add-Type -TypeDefinition $source -Language CSharp
+
+        # Registry paths with real-time optimizations
+        $paths = @{
+            "HKLM:\SYSTEM\CurrentControlSet\Services\kbdclass\Parameters" = @{
+                "KeyboardDataQueueSize" = 0x96        # Maximum queue size
+                "ConnectMultiplePorts" = 0x0
+                "KeyboardDeviceBaseName" = "KeyboardClass"
+                "MaximumPortsServiced" = 0x3
+                "SendOutputToAllPorts" = 0x1
+                "PollStatusIterations" = 0x1          # Minimum polling
+                "ThreadPriority" = 0x7                # Real-time priority
+                "BufferSize" = 0x960                  # Enhanced buffer
+                "ResendIterations" = 0x1              # Minimum resend delay
+                "KeyboardMode" = 0x1                  # Enhanced mode
+                "EnableKeyboardDeviceInterface" = 0x1
+            }
+            "HKCU:\Control Panel\Keyboard" = @{
+                "KeyboardDelay" = "0"                 # Zero delay
+                "KeyboardSpeed" = "48"                # Maximum speed
+                "InitialKeyboardIndicators" = "0"
+                "KeyboardDataQueueSize" = "96"        # Enhanced queue
+            }
+            "HKCU:\Control Panel\Desktop" = @{
+                "KeyboardSpeed" = "48"
+                "KeyboardDelay" = "0"
+                "CursorBlinkRate" = "500"            # Ultra-fast blink
+                "LowLevelHooksTimeout" = "1000"
+                "HungAppTimeout" = "1000"
+                "ForegroundLockTimeout" = "0"
+                "ForegroundFlashCount" = "0"
+            }
+            "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" = @{
+                "NetworkThrottlingIndex" = 0xffffffff
+                "SystemResponsiveness" = 0x0
+                "KeyboardTimingThreshold" = 0x1
+            }
+        }
+
+        # Apply settings with real-time enforcement
+        foreach ($path in $paths.Keys) {
+            if (!(Test-Path $path)) {
+                New-Item -Path $path -Force | Out-Null
+            }
+
+            foreach ($setting in $paths[$path].GetEnumerator()) {
+                if ($setting.Value -is [string]) {
+                    Set-ItemProperty -Path $path -Name $setting.Key -Value $setting.Value -Type String -Force
+                } else {
+                    Set-ItemProperty -Path $path -Name $setting.Key -Value $setting.Value -Type DWord -Force
+                }
+                # Force immediate update after each setting
+                [KeyboardUtils]::UpdatePerUserSystemParameters(1, $true)
+            }
+        }
+
+        # Real-time system updates
+        [KeyboardUtils]::SystemParametersInfo([KeyboardUtils]::SPI_SETKEYBOARDDELAY, 0, [IntPtr]::Zero, [KeyboardUtils]::SPIF_UPDATEINIFILE -bor [KeyboardUtils]::SPIF_SENDCHANGE)
+        [KeyboardUtils]::SystemParametersInfo([KeyboardUtils]::SPI_SETKEYBOARDSPEED, 48, [IntPtr]::Zero, [KeyboardUtils]::SPIF_UPDATEINIFILE -bor [KeyboardUtils]::SPIF_SENDCHANGE)
+
+        # Multiple refresh commands for instant effect
+        $refreshCommands = @(
+            "user32.dll,UpdatePerUserSystemParameters 1, True",
+            "user32.dll,UpdatePerUserSystemParameters",
+            "user32.dll,SystemParametersInfo"
+        )
+
+        foreach ($cmd in $refreshCommands) {
+            Start-Process -FilePath "rundll32.exe" -ArgumentList $cmd -NoNewWindow -Wait
+        }
+
+        Write-Host "Real-time keyboard optimization complete!" -ForegroundColor Green
+        Write-Host "✓ Zero input latency achieved" -ForegroundColor Yellow
+        Write-Host "✓ Maximum repeat rate enabled" -ForegroundColor Yellow
+        Write-Host "✓ Enhanced buffer and queue size" -ForegroundColor Yellow
+        Write-Host "✓ Real-time thread priority" -ForegroundColor Yellow
+        Write-Host "✓ Instant response time activated" -ForegroundColor Yellow
         }
     }
 }
+
  # cleanup tab
 $cleanupTasks = @{
     "Temp Folders" = @{
-        category = "System Cleanup"
         content = "Clean Temporary Files"
         description = "Removes files from Windows Temp and %temp% folders"
         action = {
@@ -858,7 +916,6 @@ $cleanupTasks = @{
         }
     }
     "Recycle Bin" = @{
-        category = "System Cleanup"
         content = "Empty Recycle Bin"
         description = "Permanently removes all items from the Recycle Bin"
         action = {
@@ -868,7 +925,6 @@ $cleanupTasks = @{
         }
     }
     "DNS Cache" = @{
-        category = "Network Cleanup"
         content = "Flush DNS Cache"
         description = "Clears DNS resolver cache to fix potential connectivity issues"
         action = {
@@ -878,7 +934,6 @@ $cleanupTasks = @{
         }
     }
 "Drive Cleanup" = @{
-    category = "System Cleanup"
     content = "Drive Cleanup"
     description = "Runs a gaming-optimized disk cleanup that preserves performance"
     action = {
@@ -920,22 +975,23 @@ $cleanupTasks = @{
     WindowStyle="None"
     AllowsTransparency="True"
     Background="Transparent"
-    Width="1380"
-    Height="800"
-    MaxWidth="1380"
-    MaxHeight="800"
+    Width="1200"
+    Height="700"
+    MaxWidth="1200"
+    MaxHeight="700"
     ResizeMode="NoResize"
     WindowStartupLocation="CenterScreen">
-    
+
     <Window.Resources>
         <ResourceDictionary>
-            <SolidColorBrush x:Key="WindowBackground" Color="#1E1E1E"/>
+            <SolidColorBrush x:Key="WindowBackground" Color="#0F0F0F"/>
             <SolidColorBrush x:Key="TextColor" Color="#FFFFFF"/>
-            <SolidColorBrush x:Key="ButtonBackground" Color="#2D2D2D"/>
-            <SolidColorBrush x:Key="ButtonHover" Color="#404040"/>
-            <SolidColorBrush x:Key="ButtonPressed" Color="#505050"/>
-            <SolidColorBrush x:Key="ButtonBorder" Color="#404040"/>
-            
+            <SolidColorBrush x:Key="ButtonBackground" Color="#1A1A1A"/>
+            <SolidColorBrush x:Key="ButtonHover" Color="#2D2D2D"/>
+            <SolidColorBrush x:Key="ButtonPressed" Color="#353535"/>
+            <SolidColorBrush x:Key="ButtonBorder" Color="#232323"/>
+            <SolidColorBrush x:Key="SideNavBackground" Color="#1A1A1A"/>
+
             <Style x:Key="WindowButtonStyle" TargetType="Button">
                 <Setter Property="Background" Value="Transparent"/>
                 <Setter Property="BorderThickness" Value="0"/>
@@ -952,6 +1008,208 @@ $cleanupTasks = @{
                     </Setter.Value>
                 </Setter>
             </Style>
+
+<Style x:Key="NavButtonStyle" TargetType="Button">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="#B8B8B8"/>
+    <Setter Property="FontSize" Value="14"/>
+    <Setter Property="Height" Value="40"/>
+    <Setter Property="Margin" Value="0,2"/>
+    <Setter Property="Template">
+        <Setter.Value>
+            <ControlTemplate TargetType="Button">
+                <Grid>
+                    <Border x:Name="border" 
+                            Background="{TemplateBinding Background}" 
+                            CornerRadius="6"
+                            Padding="16,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="24"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Path x:Name="icon" 
+                                  Data="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
+                                  Fill="{TemplateBinding Foreground}"
+                                  Width="18" Height="18"
+                                  Stretch="Uniform"/>
+                            <TextBlock Grid.Column="1"
+                                     Text="{TemplateBinding Content}" 
+                                     Margin="12,0,0,0"
+                                     VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+                    <Border x:Name="activeIndicator"
+                            Width="3"
+                            Background="#007ACC"
+                            HorizontalAlignment="Left"
+                            Opacity="0"
+                            CornerRadius="3,0,0,3"/>
+                </Grid>
+                <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter TargetName="border" Property="Background" Value="{StaticResource ButtonHover}"/>
+                        <Setter Property="Foreground" Value="White"/>
+                    </Trigger>
+                    <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True">
+                        <Setter TargetName="border" Property="Background" Value="{StaticResource ButtonHover}"/>
+                        <Setter Property="Foreground" Value="White"/>
+                        <Setter TargetName="activeIndicator" Property="Opacity" Value="1"/>
+                    </DataTrigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate>
+        </Setter.Value>
+    </Setter>
+</Style>
+
+            <!-- Style for the toggle switch -->
+<Style x:Key="ToggleSwitchStyle" TargetType="ToggleButton">
+    <Setter Property="Template">
+        <Setter.Value>
+            <ControlTemplate TargetType="ToggleButton">
+                <Border x:Name="Container" 
+                        Width="50" 
+                        Height="25" 
+                        CornerRadius="12.5"
+                        Background="#FF4444">
+                    <Border x:Name="Slider"
+                            Width="21" 
+                            Height="21" 
+                            CornerRadius="10.5"
+                            Background="White"
+                            HorizontalAlignment="Left"
+                            Margin="2,0,0,0"/>
+                </Border>
+                <ControlTemplate.Triggers>
+                    <Trigger Property="IsChecked" Value="True">
+                        <Setter TargetName="Container" Property="Background" Value="#4CAF50"/>
+                        <Setter TargetName="Slider" Property="HorizontalAlignment" Value="Right"/>
+                        <Setter TargetName="Slider" Property="Margin" Value="0,0,2,0"/>
+                    </Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate>
+        </Setter.Value>
+    </Setter>
+</Style>
+
+<Style x:Key="ActionButtonStyle" TargetType="Button">
+    <Setter Property="Background" Value="#007ACC"/>
+    <Setter Property="Foreground" Value="White"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="20,10"/>
+    <Setter Property="Template">
+        <Setter.Value>
+            <ControlTemplate TargetType="Button">
+                <Border Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="6">
+                    <ContentPresenter HorizontalAlignment="Center" 
+                                    VerticalAlignment="Center"/>
+                </Border>
+                <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="#0098FF"/>
+                    </Trigger>
+                    <Trigger Property="IsPressed" Value="True">
+                        <Setter Property="Background" Value="#005A99"/>
+                    </Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate>
+        </Setter.Value>
+    </Setter>
+</Style>
+
+<Style x:Key="ModernComboBoxStyle" TargetType="ComboBox">
+    <Setter Property="Background" Value="#007ACC"/>
+    <Setter Property="Foreground" Value="White"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="10,5"/>
+    <Setter Property="Template">
+        <Setter.Value>
+            <ControlTemplate TargetType="ComboBox">
+                <Grid>
+                    <ToggleButton x:Name="ToggleButton"
+                                IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                Focusable="False">
+                        <ToggleButton.Template>
+                            <ControlTemplate TargetType="ToggleButton">
+                                <Border x:Name="MainBorder" 
+                                        Background="{Binding Background, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                        CornerRadius="6">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <ContentPresenter Grid.Column="0"
+                                                        Content="{Binding Path=SelectionBoxItem, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                                        ContentTemplate="{Binding Path=SelectionBoxItemTemplate, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                                        Margin="10,0,0,0"
+                                                        VerticalAlignment="Center"/>
+                                        <Path Grid.Column="1"
+                                              Data="M0,0 L8,8 L16,0"
+                                              Fill="White"
+                                              HorizontalAlignment="Right"
+                                              VerticalAlignment="Center"
+                                              Margin="0,0,10,0"/>
+                                    </Grid>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" TargetName="MainBorder" Value="#0098FF"/>
+                                    </Trigger>
+                                    <Trigger Property="IsChecked" Value="True">
+                                        <Setter Property="Background" TargetName="MainBorder" Value="#0098FF"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </ToggleButton.Template>
+                    </ToggleButton>
+                    <Popup x:Name="PART_Popup"
+                           AllowsTransparency="True"
+                           Placement="Bottom"
+                           IsOpen="{TemplateBinding IsDropDownOpen}"
+                           PopupAnimation="Slide"
+                           StaysOpen="False">
+                        <Grid MinWidth="{TemplateBinding ActualWidth}">
+                            <Border Background="#1E1E1E"
+                                    BorderBrush="#007ACC"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Margin="0,2,0,0">
+                                <ScrollViewer MaxHeight="200"
+                                            SnapsToDevicePixels="True"
+                                            HorizontalScrollBarVisibility="Disabled"
+                                            VerticalScrollBarVisibility="Auto">
+                                    <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                </ScrollViewer>
+                            </Border>
+                        </Grid>
+                    </Popup>
+                </Grid>
+                <ControlTemplate.Triggers>
+                    <Trigger Property="HasItems" Value="False">
+                        <Setter TargetName="ToggleButton" Property="IsEnabled" Value="False"/>
+                    </Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate>
+        </Setter.Value>
+    </Setter>
+</Style>
+
+<!-- Standard panel size and style -->
+<Style x:Key="StandardPanelStyle" TargetType="Border">
+    <Setter Property="Width" Value="350"/>
+    <Setter Property="Height" Value="200"/>
+    <Setter Property="Margin" Value="10"/>
+    <Setter Property="Padding" Value="15"/>
+    <Setter Property="Background" Value="{DynamicResource ButtonBackground}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource ButtonBorder}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="10"/>
+</Style>
 
             <Style x:Key="TabButtonStyle" TargetType="Button">
                 <Setter Property="Background" Value="{DynamicResource ButtonBackground}"/>
@@ -978,279 +1236,255 @@ $cleanupTasks = @{
             </Style>
         </ResourceDictionary>
     </Window.Resources>
-
-    <Border CornerRadius="10" Background="{DynamicResource WindowBackground}">
+    <Border CornerRadius="12" Background="{DynamicResource WindowBackground}">
         <Grid>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="40"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="240"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
 
-            <!-- Title Bar -->
-            <Grid Grid.Row="0" Background="Transparent">
-                <TextBlock Text="Ritzy Optimizer" 
-                         Foreground="{DynamicResource TextColor}" 
-                         HorizontalAlignment="Left" 
-                         VerticalAlignment="Center"
-                         Margin="15,0,0,0"
-                         FontSize="16"/>
-                         
-                <StackPanel Orientation="Horizontal" 
-                          HorizontalAlignment="Center" 
-                          VerticalAlignment="Center">
-                    <Button x:Name="AppsTab" 
-                            Content="Apps" 
-                            Style="{StaticResource TabButtonStyle}" 
-                            Width="100"/>
-                    <Button x:Name="OptimizeTab" 
-                            Content="Optimize" 
-                            Style="{StaticResource TabButtonStyle}" 
-                            Width="100"/>
-                    <Button x:Name="InfoTab" 
-                            Content="Info" 
-                            Style="{StaticResource TabButtonStyle}" 
-                            Width="100"/>
-                    <Button x:Name="CleanTab" 
-                            Content="Clean" 
-                            Style="{StaticResource TabButtonStyle}" 
-                            Width="100"/>
-                    <Button x:Name="RevertButton"
-                            Content="Revert Changes"
-                            Background="#FF4444"
-                            Foreground="White"
-                            FontWeight="Bold"
-                            Width="135"
-                            Height="30"
-                            Style="{StaticResource TabButtonStyle}"
-                            Margin="20,5,5,0"/>
-                </StackPanel>
+            <!-- Left Navigation Panel -->
+            <Border Background="{DynamicResource SideNavBackground}" CornerRadius="8" Margin="8">
+                <DockPanel Margin="16">
+                    <StackPanel DockPanel.Dock="Top" Margin="0,0,0,24">
+                        <TextBlock Text="Ritzy Optimizer" 
+                                 FontSize="20" 
+                                 FontWeight="SemiBold"
+                                 Foreground="White"/>
+                    </StackPanel>
 
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,5,0">
-                    <Button x:Name="ThemeToggle" Width="30" Height="20" Margin="0,0,5,0"
-                            Style="{StaticResource WindowButtonStyle}">
-                        <Path x:Name="ThemeIcon" 
-                              Data="M12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9Z"
-                              Fill="{DynamicResource TextColor}" 
-                              Stretch="Uniform"/>
-                    </Button>
-                    <Button x:Name="MinimizeButton" Content="−" Width="30" Height="20" Margin="0,0,5,0"
-                            Style="{StaticResource WindowButtonStyle}"/>
-                    <Button x:Name="CloseButton" Content="×" Width="30" Height="20"
-                            Style="{StaticResource WindowButtonStyle}"/>
-                </StackPanel>
-            </Grid>
+                    <StackPanel>
+                        <Button x:Name="AppsTab" 
+                                Style="{StaticResource NavButtonStyle}"
+                                Content="Apps"
+                                Tag="M3 3h18v18H3V3zm16.5 16.5V5.5h-15v14h15zm-4.5-6a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm0 3a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/>
+                        
+                        <Button x:Name="OptimizeTab" 
+                                Style="{StaticResource NavButtonStyle}"
+                                Content="Optimize"
+                                Tag="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm0-2a8 8 0 1 0 0-16 8 8 0 0 0 0 16zm-1-7h2v6h-2v-6zm0-4h2v2h-2V9z"/>
+                        
+                        <Button x:Name="CleanTab" 
+                                Style="{StaticResource NavButtonStyle}"
+                                Content="Clean"
+                                Tag="M12 2c5.523 0 10 4.477 10 10s-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2zm0 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16zm3.707 5.707a1 1 0 0 1 0 1.414l-4 4a1 1 0 0 1-1.414 0l-2-2a1 1 0 1 1 1.414-1.414L11 13.586l3.293-3.293a1 1 0 0 1 1.414 0z"/>
+                        
+                        <Button x:Name="DebloatTab" 
+                                Style="{StaticResource NavButtonStyle}"
+                                Content="Debloat"
+                                Tag="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
 
-            <!-- Main Content -->
-            <Grid Grid.Row="1">
-                <!-- Apps Content -->
-                <Grid x:Name="AppsContent" Visibility="Visible">
+                        <Button x:Name="InfoTab" 
+                                Style="{StaticResource NavButtonStyle}"
+                                Content="Info"
+                                Tag="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm0-2a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM11 7h2v2h-2V7zm0 4h2v6h-2v-6z"/>
+
+                        <Button x:Name="RevertButton"
+                                Content="Revert Changes"
+                                Background="#FF4444"
+                                Foreground="White"
+                                Style="{StaticResource NavButtonStyle}"
+                                Margin="0,20,0,0"/>
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+            <!-- Content Area -->
+            <Border Grid.Column="1" Background="{DynamicResource ButtonBackground}" CornerRadius="8" Margin="0,8,8,8">
+                <Grid>
+
+        <StackPanel Orientation="Horizontal" 
+                    HorizontalAlignment="Right" 
+                    VerticalAlignment="Top"
+                    Margin="0,4,4,0"
+                    Panel.ZIndex="999">
+            <Button x:Name="ThemeToggle" 
+                    Width="30" Height="20" 
+                    Margin="0,0,8,0"
+                    Style="{StaticResource WindowButtonStyle}">
+                <Path x:Name="ThemeIcon" 
+                      Data="M12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9Z"
+                      Fill="{DynamicResource TextColor}" 
+                      Stretch="Uniform"/>
+            </Button>
+            <Button x:Name="MinimizeButton" 
+                    Content="−" 
+                    Width="30" Height="20" 
+                    Margin="0,0,8,0"
+                    Style="{StaticResource WindowButtonStyle}"/>
+            <Button x:Name="CloseButton" 
+                    Content="×" 
+                    Width="30" Height="20"
+                    Style="{StaticResource WindowButtonStyle}"/>
+        </StackPanel>
+
+                            <!-- Apps Content -->
+                <Grid x:Name="AppsContent" Visibility="Visible" Margin="0,35,0,-10">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="10">
-                        <StackPanel x:Name="CategoriesPanel"/>
+                        <WrapPanel x:Name="CategoriesPanel" Orientation="Horizontal"/>
                     </ScrollViewer>
                     <Button x:Name="InstallButton" 
                             Content="Install Selected" 
-                            Style="{StaticResource TabButtonStyle}"
+                            Style="{StaticResource ActionButtonStyle}"
                             Width="120" 
                             Height="35" 
                             VerticalAlignment="Bottom"
                             HorizontalAlignment="Left" 
                             Margin="20,0,0,20"/>
+
+                     
+                    <Button x:Name="UninstallButton" 
+                            Content="Uninstall Selected" 
+                            Style="{StaticResource ActionButtonStyle}"
+                            Width="130" 
+                            Height="35" 
+                            VerticalAlignment="Bottom"
+                            HorizontalAlignment="Left" 
+                            Margin="150,0,0,20"/>       
+                    </Grid>
+
+                    <!-- Clean Content -->
+                    <Grid x:Name="CleanContent" Visibility="Collapsed" Margin="0,35,0,-10">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="10">
+                            <StackPanel x:Name="CleanPanel"/>
+                        </ScrollViewer>
+                        <Button x:Name="CleanButton" 
+                                Content="Clean System" 
+                                Style="{StaticResource ActionButtonStyle}"
+                                Width="120" 
+                                Height="35" 
+                                VerticalAlignment="Bottom"
+                                HorizontalAlignment="Left" 
+                                Margin="20,0,0,20"/>
+                    </Grid>
+
+                    <!-- Optimize Content -->
+                    <Grid x:Name="OptimizeContent" Visibility="Collapsed" Margin="0,35,0,-10">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" Margin="10">
+                            <StackPanel x:Name="OptimizationsPanel"/>
+                        </ScrollViewer>
+
+                        <Grid Grid.Row="1" Margin="20,0,20,20">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Button x:Name="RunTweaksButton" 
+                                    Grid.Column="0"
+                                    Content="Run Tweaks" 
+                                    Style="{StaticResource ActionButtonStyle}"
+                                    Width="120" 
+                                    Height="35"/>
+
+                            <ComboBox x:Name="DNSComboBox" 
+                                      Grid.Column="1"
+                                      Width="120" 
+                                      Height="35"
+                                      HorizontalAlignment="Left"
+                                      Margin="20,0,0,0"
+                                      Style="{StaticResource ModernComboBoxStyle}">
+                                <ComboBoxItem IsEnabled="False" IsSelected="True">Select DNS</ComboBoxItem>
+                                <ComboBoxItem>Cloudflare DNS</ComboBoxItem>
+                                <ComboBoxItem>Google DNS</ComboBoxItem>
+                                <ComboBoxItem>Default DNS</ComboBoxItem>
+                            </ComboBox>
+                        </Grid>
+                    </Grid>
+
+                    <!-- Debloat Content -->
+                    <Grid x:Name="DebloatContent" Visibility="Collapsed" Margin="0,35,0,-10">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" Margin="10">
+                            <StackPanel x:Name="DebloatPanel"/>
+                        </ScrollViewer>
+
+                        <Grid Grid.Row="1" Margin="20,0,20,20">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Button x:Name="DebloatButton" 
+                                    Grid.Column="0"
+                                    Content="Run Debloater" 
+                                    Style="{StaticResource ActionButtonStyle}"
+                                    Width="120" 
+                                    Height="35"/>
+                        </Grid>
+                    </Grid>
+
+                    <!-- Info Content -->
+                    <Grid x:Name="InfoContent" Visibility="Collapsed" Margin="0,35,0,0">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="20">
+                            <StackPanel Margin="10">
+                                <!-- Tool Information -->
+                                <Border Background="{DynamicResource ButtonBackground}" CornerRadius="15" Padding="25" Margin="0,0,0,20">
+                                    <StackPanel>
+                                        <TextBlock Text="Tool Information" FontSize="26" FontWeight="SemiBold" Foreground="{DynamicResource TextColor}"/>
+                                        <Separator Margin="0,5,0,10" Background="{DynamicResource TextColor}" Opacity="0.1"/>
+                                        <TextBlock Name="CurrentDateTime" Foreground="{DynamicResource TextColor}" FontSize="14" Margin="0,0,0,5"/>
+                                        <TextBlock Text="Version: 1.0.0" Foreground="{DynamicResource TextColor}" FontSize="14" Margin="0,0,0,5"/>
+                                        <TextBlock Text="Created by: Ritzy" Foreground="{DynamicResource TextColor}" FontSize="14"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Socials -->
+                                <Border Background="{DynamicResource ButtonBackground}" CornerRadius="15" Padding="25" Margin="0,0,0,20">
+                                    <StackPanel>
+                                        <TextBlock Text="Connect With Me" FontSize="26" FontWeight="SemiBold" Foreground="{DynamicResource TextColor}"/>
+                                        <Separator Margin="0,5,0,10" Background="{DynamicResource TextColor}" Opacity="0.1"/>
+                                        <TextBlock Foreground="{DynamicResource TextColor}" FontSize="14">
+                                            <Run Text="YouTube: "/>
+                                            <Hyperlink NavigateUri="https://www.youtube.com/@RitzySix">
+                                                @RitzySix
+                                            </Hyperlink>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Recent Updates -->
+                                <Border Background="{DynamicResource ButtonBackground}" CornerRadius="15" Padding="25" Margin="0,0,0,20">
+                                    <StackPanel>
+                                        <TextBlock Text="Recent Updates" FontSize="26" FontWeight="SemiBold" Foreground="{DynamicResource TextColor}"/>
+                                        <Separator Margin="0,5,0,10" Background="{DynamicResource TextColor}" Opacity="0.1"/>
+                                        <StackPanel Margin="10,0,0,0">
+                                            <TextBlock Text="• v1.0.0 - Initial Release" Foreground="{DynamicResource TextColor}" FontSize="14" Margin="0,0,0,5"/>
+                                            <TextBlock Text="• Added Dark/Light Theme Toggle" Foreground="{DynamicResource TextColor}" FontSize="14" Margin="0,0,0,5"/>
+                                            <TextBlock Text="• Implemented App Installation System" Foreground="{DynamicResource TextColor}" FontSize="14" Margin="0,0,0,5"/>
+                                            <TextBlock Text="• Added Multiple Categories Support" Foreground="{DynamicResource TextColor}" FontSize="14" Margin="0,0,0,5"/>
+                                            <TextBlock Text="• Enhanced UI/UX Design" Foreground="{DynamicResource TextColor}" FontSize="14" Margin="0,0,0,5"/>
+                                            <TextBlock Text="• Added System Cleanup" Foreground="{DynamicResource TextColor}" FontSize="14"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- About Me -->
+                                <Border Background="{DynamicResource ButtonBackground}" CornerRadius="15" Padding="25">
+                                    <StackPanel>
+                                        <TextBlock Text="About Ritzy" FontSize="26" FontWeight="SemiBold" Foreground="{DynamicResource TextColor}"/>
+                                        <Separator Margin="0,5,0,10" Background="{DynamicResource TextColor}" Opacity="0.1"/>
+                                        <TextBlock Foreground="{DynamicResource TextColor}" TextWrapping="Wrap" FontSize="14" LineHeight="24">
+                                            Hey there! I'm Ritzy, a passionate gamer who loves diving deep into PC optimization and coding. This tool was born from my personal need for a quick and efficient way to set up my PC after fresh resets. As someone who understands the importance of peak performance in gaming, I wanted to create something that would help others achieve the same without the hassle.
+                                            <LineBreak/><LineBreak/>
+                                            My journey in PC optimization started with tweaking my own setup for better gaming performance, and it evolved into this comprehensive tool that I'm excited to share with the community. Whether you're a fellow gamer, a content creator, or someone who just wants their PC to run better, this tool is designed with you in mind.
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
                 </Grid>
-
-        <!-- Clean Content -->
-        <Grid x:Name="CleanContent" Visibility="Collapsed">
-           <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="10">
-             <StackPanel x:Name="CleanPanel"/>
-          </ScrollViewer>
-          <Button x:Name="CleanButton" 
-                Content="Clean System" 
-                Style="{StaticResource TabButtonStyle}"
-                Width="120" 
-                Height="35" 
-                VerticalAlignment="Bottom"
-                HorizontalAlignment="Left" 
-                Margin="20,0,0,20"/>
-        </Grid>
-
-<!-- Optimize Content -->
-<Grid x:Name="OptimizeContent" Visibility="Collapsed">
-    <Grid.RowDefinitions>
-        <RowDefinition Height="*"/>
-        <RowDefinition Height="Auto"/>
-    </Grid.RowDefinitions>
-    
-    <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" Margin="10">
-        <StackPanel x:Name="OptimizationsPanel"/>
-    </ScrollViewer>
-    
-    <!-- Bottom Controls -->
-    <Grid Grid.Row="1" Margin="20,0,20,20">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
-
-        <!-- Run Tweaks Button -->
-        <Button x:Name="RunTweaksButton" 
-                Grid.Column="0"
-                Content="Run Tweaks" 
-                Style="{StaticResource TabButtonStyle}"
-                Width="120" 
-                Height="35"/>
-
-        <!-- DNS ComboBox -->
-        <ComboBox x:Name="DNSComboBox" 
-                  Grid.Column="1"
-                  Width="120" 
-                  Height="35"
-                  HorizontalAlignment="Left"
-                  Margin="20,0,0,0">
-            <ComboBox.Resources>
-                <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="#1E1E1E"/>
-                <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#3E3E3E"/>
-            </ComboBox.Resources>
-            <ComboBox.Style>
-                <Style TargetType="ComboBox">
-                    <Setter Property="Background" Value="#333333"/>
-                    <Setter Property="Foreground" Value="#FFFFFF"/>
-                    <Setter Property="BorderBrush" Value="#454545"/>
-                    <Setter Property="BorderThickness" Value="1"/>
-                    <Setter Property="Template">
-                        <Setter.Value>
-                            <ControlTemplate TargetType="ComboBox">
-                                <Grid>
-                                    <Border x:Name="Border"
-                                            Background="{TemplateBinding Background}"
-                                            BorderBrush="{TemplateBinding BorderBrush}"
-                                            BorderThickness="{TemplateBinding BorderThickness}"
-                                            CornerRadius="5">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <ContentPresenter 
-                                                Content="{TemplateBinding SelectionBoxItem}"
-                                                ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
-                                                Margin="10,0,0,0"
-                                                VerticalAlignment="Center"/>
-                                            <Path Grid.Column="1"
-                                                  Data="M0,0 L4,4 L8,0"
-                                                  Stroke="White"
-                                                  StrokeThickness="2"
-                                                  Margin="0,0,10,0"
-                                                  VerticalAlignment="Center"/>
-                                            <ToggleButton Grid.ColumnSpan="2"
-                                                        IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
-                                                        Opacity="0"/>
-                                        </Grid>
-                                    </Border>
-                                    <Popup IsOpen="{TemplateBinding IsDropDownOpen}"
-                                           Placement="Bottom"
-                                           AllowsTransparency="True"
-                                           Focusable="False">
-                                        <Border Background="#333333"
-                                                BorderBrush="#454545"
-                                                BorderThickness="1"
-                                                CornerRadius="5"
-                                                Margin="0,2,0,0">
-                                            <ScrollViewer MaxHeight="200">
-                                                <StackPanel IsItemsHost="True"
-                                                            KeyboardNavigation.DirectionalNavigation="Contained"/>
-                                            </ScrollViewer>
-                                        </Border>
-                                    </Popup>
-                                </Grid>
-                                <ControlTemplate.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="Border" Property="Background" Value="#404040"/>
-                                    </Trigger>
-                                </ControlTemplate.Triggers>
-                            </ControlTemplate>
-                        </Setter.Value>
-                    </Setter>
-                </Style>
-            </ComboBox.Style>
-            <ComboBox.ItemContainerStyle>
-                <Style TargetType="ComboBoxItem">
-                    <Setter Property="Background" Value="Transparent"/>
-                    <Setter Property="Foreground" Value="White"/>
-                    <Setter Property="Padding" Value="10,5"/>
-                    <Style.Triggers>
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter Property="Background" Value="#454545"/>
-                        </Trigger>
-                        <Trigger Property="IsSelected" Value="True">
-                            <Setter Property="Background" Value="#505050"/>
-                        </Trigger>
-                    </Style.Triggers>
-                </Style>
-            </ComboBox.ItemContainerStyle>
-            
-            <ComboBoxItem IsEnabled="False" IsSelected="True">Select DNS</ComboBoxItem>
-            <ComboBoxItem>Cloudflare DNS</ComboBoxItem>
-            <ComboBoxItem>Google DNS</ComboBoxItem>
-            <ComboBoxItem>Default DNS</ComboBoxItem>
-        </ComboBox>
-    </Grid>
-</Grid>
-
-                <!-- Info Content -->
-                <Grid x:Name="InfoContent" Visibility="Collapsed">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="20">
-                        <StackPanel Margin="10">
-                            <!-- Tool Information -->
-                            <Border Background="{DynamicResource ButtonBackground}" CornerRadius="10" Padding="20" Margin="0,0,0,20">
-                                <StackPanel>
-                                    <TextBlock Text="Tool Information" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource TextColor}" Margin="0,0,0,15"/>
-                                    <TextBlock Text="Current Date/Time: " Name="CurrentDateTime" Foreground="{DynamicResource TextColor}"/>
-                                    <TextBlock Text="Version: 1.0.0" Foreground="{DynamicResource TextColor}"/>
-                                    <TextBlock Text="Created by: Ritzy" Foreground="{DynamicResource TextColor}"/>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- Socials -->
-                            <Border Background="{DynamicResource ButtonBackground}" CornerRadius="10" Padding="20" Margin="0,0,0,20">
-                                <StackPanel>
-                                    <TextBlock Text="Connect With Me" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource TextColor}" Margin="0,0,0,15"/>
-                                    <TextBlock Margin="0,0,0,10" Foreground="{DynamicResource TextColor}">
-                                        <Run Text="YouTube: "/>
-                                        <Run Text="https://www.youtube.com/@RitzySix"/>
-                                    </TextBlock>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- Recent Updates -->
-                            <Border Background="{DynamicResource ButtonBackground}" CornerRadius="10" Padding="20" Margin="0,0,0,20">
-                                <StackPanel>
-                                    <TextBlock Text="Recent Updates" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource TextColor}" Margin="0,0,0,15"/>
-                                    <TextBlock Foreground="{DynamicResource TextColor}" TextWrapping="Wrap">
-                                        • v1.0.0 - Initial Release<LineBreak/>
-                                        • Added Dark/Light Theme Toggle<LineBreak/>
-                                        • Implemented App Installation System<LineBreak/>
-                                        • Added Multiple Categories Support<LineBreak/>
-                                        • Enhanced UI/UX Design<LineBreak/>
-                                        • Added System Cleanup
-                                    </TextBlock>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- About Me -->
-                            <Border Background="{DynamicResource ButtonBackground}" CornerRadius="10" Padding="20">
-                                <StackPanel>
-                                    <TextBlock Text="About Ritzy" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource TextColor}" Margin="0,0,0,15"/>
-                                    <TextBlock Foreground="{DynamicResource TextColor}" TextWrapping="Wrap">
-                                        Hey there! I'm Ritzy, a passionate gamer who loves diving deep into PC optimization and coding. This tool was born from my personal need for a quick and efficient way to set up my PC after fresh resets. As someone who understands the importance of peak performance in gaming, I wanted to create something that would help others achieve the same without the hassle.
-                                        <LineBreak/><LineBreak/>
-                                        My journey in PC optimization started with tweaking my own setup for better gaming performance, and it evolved into this comprehensive tool that I'm excited to share with the community. Whether you're a fellow gamer, a content creator, or someone who just wants their PC to run better, this tool is designed with you in mind.
-                                    </TextBlock>
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
-                    </ScrollViewer>
-                </Grid>
-            </Grid>
+            </Border>
         </Grid>
     </Border>
 </Window>
@@ -1284,179 +1518,303 @@ $cleanButton = $window.FindName("CleanButton")
 $cleanPanel = $window.FindName("CleanPanel")
 $revertButton = $window.FindName("RevertButton")
 $DNSComboBox = $window.FindName("DNSComboBox")
+$uninstallButton = $window.FindName("UninstallButton")
+$debloatTab = $window.FindName("DebloatTab")
+$debloatContent = $window.FindName("DebloatContent")
+$debloatPanel = $window.FindName("DebloatPanel")
+$debloatButton = $window.FindName("DebloatButton")
 
 # Theme State
 $script:isDarkMode = $true
 
-# Apps UI and GUI Pannelp
-$wrapPanel = New-Object Windows.Controls.WrapPanel
-$wrapPanel.Orientation = "Horizontal"
-$wrapPanel.HorizontalAlignment = "Center"
-$categoriesPanel.Children.Add($wrapPanel)
+$appsBorder = New-Object Windows.Controls.Border
+$appsBorder.Background = $window.Resources["BackgroundBrush"] 
+$appsBorder.BorderBrush = $window.Resources["AccentBrush"]
+$appsBorder.BorderThickness = "1"
+$appsBorder.CornerRadius = "8"
+$appsBorder.Margin = "8"
+$appsBorder.Padding = "15"
 
-$categories = ($apps.Values | ForEach-Object { $_['category'] }) | Select-Object -Unique
+# Create main container
+$appsWrapPanel = New-Object Windows.Controls.WrapPanel
+$appsWrapPanel.Orientation = "Horizontal"
+$appsWrapPanel.Margin = "4"
 
-foreach ($category in $categories) {
-    $categoryBorder = New-Object Windows.Controls.Border
-    $categoryBorder.Background = $window.Resources["ButtonBackground"]
-    $categoryBorder.BorderBrush = $window.Resources["ButtonBorder"]
-    $categoryBorder.BorderThickness = "1"
-    $categoryBorder.CornerRadius = "10"
-    $categoryBorder.Margin = "10,5,10,5"
-    $categoryBorder.Padding = "15"
-    $categoryBorder.Width = "225"
-    $categoryBorder.MinHeight = "650"
-    $categoryBorder.VerticalAlignment = "Stretch"
+foreach ($app in $apps.GetEnumerator()) {
+    $appBorder = New-Object Windows.Controls.Border
+    $appBorder.Background = $window.Resources["ButtonBackground"]
+    $appBorder.BorderBrush = $window.Resources["ButtonBorder"]
+    $appBorder.BorderThickness = "1"
+    $appBorder.CornerRadius = "10"
+    $appBorder.Margin = "8"
+    $appBorder.Padding = "15"
+    $appBorder.Width = "280"
+    $appBorder.MinHeight = "180"
 
-    $categoryStack = New-Object Windows.Controls.StackPanel
-    $categoryStack.VerticalAlignment = "Stretch"
+    $appStack = New-Object Windows.Controls.StackPanel
+
+    # Create header grid for toggle positioning
+    $headerGrid = New-Object Windows.Controls.Grid
     
-    $titleContainer = New-Object Windows.Controls.StackPanel
-    $titleContainer.Orientation = "Horizontal"
-    $titleContainer.Margin = "0,0,0,15"
+    # Define columns for the grid
+    $col1 = New-Object Windows.Controls.ColumnDefinition
+    $col2 = New-Object Windows.Controls.ColumnDefinition
+    $col2.Width = "Auto"
+    $headerGrid.ColumnDefinitions.Add($col1)
+    $headerGrid.ColumnDefinitions.Add($col2)
 
-    $categoryTitle = New-Object Windows.Controls.TextBlock
-    $categoryTitle.Text = $category
-    $categoryTitle.FontSize = "20"
-    $categoryTitle.FontWeight = "Bold"
-    $categoryTitle.Foreground = $window.Resources["TextColor"]
+    # Create toggle switch
+    $toggleSwitch = New-Object Windows.Controls.Primitives.ToggleButton
+    $toggleSwitch.Style = $window.Resources["ToggleSwitchStyle"]
+    $toggleSwitch.Margin = "0,0,0,10"
+    $toggleSwitch.Tag = $app.Value
+    [Windows.Controls.Grid]::SetColumn($toggleSwitch, 1)
+
+    # Create content
+    $appName = New-Object Windows.Controls.TextBlock
+    $appName.Text = $app.Value.content
+    $appName.FontWeight = "SemiBold"
+    $appName.TextWrapping = "Wrap"
+    $appName.Foreground = $window.Resources["TextColor"]
+    [Windows.Controls.Grid]::SetColumn($appName, 0)
     
-    $infoText = New-Object Windows.Controls.TextBlock
-    $infoText.Text = "?"
-    $infoText.Foreground = "#1E90FF"
-    $infoText.FontSize = "16"
-    $infoText.Margin = "5,0,0,0"
-    $infoText.TextDecorations = "Underline"
-    $infoText.VerticalAlignment = "Center"
-    $infoText.Cursor = "Hand"
+    $appDescription = New-Object Windows.Controls.TextBlock
+    $appDescription.Text = $app.Value.description
+    $appDescription.TextWrapping = "Wrap"
+    $appDescription.Opacity = 0.7
+    $appDescription.Margin = "0,5,0,0"
+    $appDescription.Foreground = $window.Resources["TextColor"]
 
-    $titleContainer.Children.Add($categoryTitle)
-    $titleContainer.Children.Add($infoText)
-    $categoryStack.Children.Add($titleContainer)
-
-    $categoryApps = $apps.GetEnumerator() | Where-Object { $_.Value.category -eq $category }
-    foreach ($app in $categoryApps) {
-        $checkbox = New-Object Windows.Controls.CheckBox
-        $checkbox.Foreground = $window.Resources["TextColor"]
-        $checkbox.Margin = "0,5"
-        $checkbox.Tag = $app.Value
-
-        $checkboxContent = New-Object Windows.Controls.StackPanel
-        $checkboxContent.Margin = "5,0,0,0"
-
-        $appName = New-Object Windows.Controls.TextBlock
-        $appName.Text = $app.Value.content
-        $appName.FontWeight = "SemiBold"
-        
-        $checkboxContent.Children.Add($appName)
-        $checkbox.Content = $checkboxContent
-
-        $categoryStack.Children.Add($checkbox)
-    }
-
-    $categoryBorder.Child = $categoryStack
-    $wrapPanel.Children.Add($categoryBorder)
+    # Add elements to layout
+    $headerGrid.Children.Add($appName)
+    $headerGrid.Children.Add($toggleSwitch)
+    
+    $appStack.Children.Add($headerGrid)
+    $appStack.Children.Add($appDescription)
+    
+    $appBorder.Child = $appStack
+    $appsWrapPanel.Children.Add($appBorder)
 }
 
-# Create Optimization Categories UI
-$optCategories = ($optimizations.Values | ForEach-Object { $_['category'] }) | Select-Object -Unique
+$categoriesPanel.Children.Add($appsWrapPanel)
 
-foreach ($category in $optCategories) {
-    $categoryBorder = New-Object Windows.Controls.Border
-    $categoryBorder.Background = $window.Resources["ButtonBackground"]
-    $categoryBorder.BorderBrush = $window.Resources["ButtonBorder"]
-    $categoryBorder.BorderThickness = "1"
-    $categoryBorder.CornerRadius = "5"
-    $categoryBorder.Margin = "0,0,0,10"
-    $categoryBorder.Padding = "10"
+# Create main border
+$debloatBorder = New-Object Windows.Controls.Border
+$debloatBorder.Background = $window.Resources["BackgroundBrush"] 
+$debloatBorder.BorderBrush = $window.Resources["AccentBrush"]
+$debloatBorder.BorderThickness = "1"
+$debloatBorder.CornerRadius = "8"
+$debloatBorder.Margin = "8"
+$debloatBorder.Padding = "15"
 
-    $categoryStack = New-Object Windows.Controls.StackPanel
-    $categoryTitle = New-Object Windows.Controls.TextBlock
-    $categoryTitle.Text = $category
-    $categoryTitle.FontSize = 18
-    $categoryTitle.FontWeight = "Bold"
-    $categoryTitle.Foreground = $window.Resources["TextColor"]
-    $categoryTitle.Margin = "0,0,0,10"
+# Create main container
+$debloatWrapPanel = New-Object Windows.Controls.WrapPanel
+$debloatWrapPanel.Orientation = "Horizontal"
+$debloatWrapPanel.Margin = "4"
+
+foreach ($item in $debloatItems.GetEnumerator()) {
+    $itemBorder = New-Object Windows.Controls.Border
+    $itemBorder.Background = $window.Resources["ButtonBackground"]
+    $itemBorder.BorderBrush = $window.Resources["ButtonBorder"]
+    $itemBorder.BorderThickness = "1"
+    $itemBorder.CornerRadius = "10"
+    $itemBorder.Margin = "8"
+    $itemBorder.Padding = "15"
+    $itemBorder.Width = "280"
+    $itemBorder.MinHeight = "180"
+
+    $itemStack = New-Object Windows.Controls.StackPanel
+
+    # Create header grid
+    $headerGrid = New-Object Windows.Controls.Grid
+
+    $col1 = New-Object Windows.Controls.ColumnDefinition
+    $col2 = New-Object Windows.Controls.ColumnDefinition
+    $col2.Width = "Auto"
+    $headerGrid.ColumnDefinitions.Add($col1)
+    $headerGrid.ColumnDefinitions.Add($col2)
+
+    # Create toggle switch
+    $toggleSwitch = New-Object Windows.Controls.Primitives.ToggleButton
+    $toggleSwitch.Style = $window.Resources["ToggleSwitchStyle"]
+    $toggleSwitch.Margin = "0,0,0,10"
+    $toggleSwitch.Tag = $item.Value
+    [Windows.Controls.Grid]::SetColumn($toggleSwitch, 1)
+
+    # Create content
+    $itemName = New-Object Windows.Controls.TextBlock
+    $itemName.Text = $item.Value.content
+    $itemName.FontWeight = "SemiBold"
+    $itemName.TextWrapping = "Wrap"
+    $itemName.Foreground = $window.Resources["TextColor"]
+    [Windows.Controls.Grid]::SetColumn($itemName, 0)
     
-    $categoryStack.Children.Add($categoryTitle)
+    $itemDescription = New-Object Windows.Controls.TextBlock
+    $itemDescription.Text = $item.Value.description
+    $itemDescription.TextWrapping = "Wrap"
+    $itemDescription.Opacity = 0.7
+    $itemDescription.Margin = "0,5,0,0"
+    $itemDescription.Foreground = $window.Resources["TextColor"]
 
-    $categoryTweaks = $optimizations.GetEnumerator() | Where-Object { $_.Value.category -eq $category }
-    foreach ($tweak in $categoryTweaks) {
-        $checkbox = New-Object Windows.Controls.CheckBox
-        $checkbox.Foreground = $window.Resources["TextColor"]
-        $checkbox.Margin = "0,5"
-        $checkbox.Tag = $tweak.Value
-
-        $checkboxContent = New-Object Windows.Controls.StackPanel
-        $tweakName = New-Object Windows.Controls.TextBlock
-        $tweakName.Text = $tweak.Value.content
-        $tweakName.FontWeight = "SemiBold"
-        
-        $tweakDescription = New-Object Windows.Controls.TextBlock
-        $tweakDescription.Text = $tweak.Value.description
-        $tweakDescription.TextWrapping = "Wrap"
-        $tweakDescription.Opacity = 0.7
-
-        $checkboxContent.Children.Add($tweakName)
-        $checkboxContent.Children.Add($tweakDescription)
-        $checkbox.Content = $checkboxContent
-
-        $categoryStack.Children.Add($checkbox)
-    }
-
-    $categoryBorder.Child = $categoryStack
-    $optimizationsPanel.Children.Add($categoryBorder)
+    # Add elements to layout
+    $headerGrid.Children.Add($itemName)
+    $headerGrid.Children.Add($toggleSwitch)
+    
+    $itemStack.Children.Add($headerGrid)
+    $itemStack.Children.Add($itemDescription)
+    
+    $itemBorder.Child = $itemStack
+    $debloatWrapPanel.Children.Add($itemBorder)
 }
 
-# Create Cleanup Categories UI
-$cleanCategories = ($cleanupTasks.Values | ForEach-Object { $_['category'] }) | Select-Object -Unique
+$debloatPanel.Children.Add($debloatWrapPanel)
 
-foreach ($category in $cleanCategories) {
-    $categoryBorder = New-Object Windows.Controls.Border
-    $categoryBorder.Background = $window.Resources["ButtonBackground"]
-    $categoryBorder.BorderBrush = $window.Resources["ButtonBorder"]
-    $categoryBorder.BorderThickness = "1"
-    $categoryBorder.CornerRadius = "5"
-    $categoryBorder.Margin = "0,0,0,10"
-    $categoryBorder.Padding = "10"
 
-    $categoryStack = New-Object Windows.Controls.StackPanel
-    $categoryTitle = New-Object Windows.Controls.TextBlock
-    $categoryTitle.Text = $category
-    $categoryTitle.FontSize = 18
-    $categoryTitle.FontWeight = "Bold"
-    $categoryTitle.Foreground = $window.Resources["TextColor"]
-    $categoryTitle.Margin = "0,0,0,10"
+# Create Optimization container
+$optimizationsBorder = New-Object Windows.Controls.Border
+$optimizationsBorder.Background = $window.Resources["BackgroundBrush"] 
+$optimizationsBorder.BorderBrush = $window.Resources["AccentBrush"]
+$optimizationsBorder.BorderThickness = "1"
+$optimizationsBorder.CornerRadius = "8"
+$optimizationsBorder.Margin = "10,5,10,10"
+$optimizationsBorder.Padding = "15"
+
+# Optimizations Section
+$optimizationsWrapPanel = New-Object Windows.Controls.WrapPanel
+$optimizationsWrapPanel.Orientation = "Horizontal"
+$optimizationsWrapPanel.Margin = "4"
+
+foreach ($tweak in $optimizations.GetEnumerator()) {
+    $tweakBorder = New-Object Windows.Controls.Border
+    $tweakBorder.Background = $window.Resources["ButtonBackground"]
+    $tweakBorder.BorderBrush = $window.Resources["ButtonBorder"]
+    $tweakBorder.BorderThickness = "1"
+    $tweakBorder.CornerRadius = "10"
+    $tweakBorder.Margin = "8"
+    $tweakBorder.Padding = "15"
+    $tweakBorder.Width = "280"
+    $tweakBorder.MinHeight = "180"
+
+    $tweakStack = New-Object Windows.Controls.StackPanel
+
+    # Create header grid for toggle positioning
+    $headerGrid = New-Object Windows.Controls.Grid
     
-    $categoryStack.Children.Add($categoryTitle)
+    # Define columns for the grid
+    $col1 = New-Object Windows.Controls.ColumnDefinition
+    $col2 = New-Object Windows.Controls.ColumnDefinition
+    $col2.Width = "Auto"
+    $headerGrid.ColumnDefinitions.Add($col1)
+    $headerGrid.ColumnDefinitions.Add($col2)
 
-    $categoryCleanups = $cleanupTasks.GetEnumerator() | Where-Object { $_.Value.category -eq $category }
-    foreach ($cleanup in $categoryCleanups) {
-        $checkbox = New-Object Windows.Controls.CheckBox
-        $checkbox.Foreground = $window.Resources["TextColor"]
-        $checkbox.Margin = "0,5"
-        $checkbox.Tag = $cleanup.Value
+    # Create toggle switch
+    $toggleSwitch = New-Object Windows.Controls.Primitives.ToggleButton
+    $toggleSwitch.Style = $window.Resources["ToggleSwitchStyle"]
+    $toggleSwitch.Margin = "0,0,0,10"
+    $toggleSwitch.Tag = $tweak.Value
+    [Windows.Controls.Grid]::SetColumn($toggleSwitch, 1)
 
-        $checkboxContent = New-Object Windows.Controls.StackPanel
-        $cleanupName = New-Object Windows.Controls.TextBlock
-        $cleanupName.Text = $cleanup.Value.content
-        $cleanupName.FontWeight = "SemiBold"
-        
-        $cleanupDescription = New-Object Windows.Controls.TextBlock
-        $cleanupDescription.Text = $cleanup.Value.description
-        $cleanupDescription.TextWrapping = "Wrap"
-        $cleanupDescription.Opacity = 0.7
+    # Create content
+    $tweakName = New-Object Windows.Controls.TextBlock
+    $tweakName.Text = $tweak.Value.content
+    $tweakName.FontWeight = "SemiBold"
+    $tweakName.TextWrapping = "Wrap"
+    $tweakName.Foreground = $window.Resources["TextColor"]
+    [Windows.Controls.Grid]::SetColumn($tweakName, 0)
+    
+    $tweakDescription = New-Object Windows.Controls.TextBlock
+    $tweakDescription.Text = $tweak.Value.description
+    $tweakDescription.TextWrapping = "Wrap"
+    $tweakDescription.Opacity = 0.7
+    $tweakDescription.Margin = "0,5,0,0"
+    $tweakDescription.Foreground = $window.Resources["TextColor"]
 
-        $checkboxContent.Children.Add($cleanupName)
-        $checkboxContent.Children.Add($cleanupDescription)
-        $checkbox.Content = $checkboxContent
-
-        $categoryStack.Children.Add($checkbox)
-    }
-
-    $categoryBorder.Child = $categoryStack
-    $cleanPanel.Children.Add($categoryBorder)
+    # Add elements to layout
+    $headerGrid.Children.Add($tweakName)
+    $headerGrid.Children.Add($toggleSwitch)
+    
+    $tweakStack.Children.Add($headerGrid)
+    $tweakStack.Children.Add($tweakDescription)
+    
+    $tweakBorder.Child = $tweakStack
+    $optimizationsWrapPanel.Children.Add($tweakBorder)
 }
+
+$optimizationsPanel.Children.Add($optimizationsWrapPanel)
+
+# Create main container
+$cleanupBorder = New-Object Windows.Controls.Border
+$cleanupBorder.Background = $window.Resources["BackgroundBrush"] 
+$cleanupBorder.BorderBrush = $window.Resources["AccentBrush"]
+$cleanupBorder.BorderThickness = "1"
+$cleanupBorder.CornerRadius = "8"
+$cleanupBorder.Margin = "8"
+$cleanupBorder.Padding = "15"
+
+# Cleanup Section
+$cleanupWrapPanel = New-Object Windows.Controls.WrapPanel
+$cleanupWrapPanel.Orientation = "Horizontal"
+$cleanupWrapPanel.Margin = "4"
+
+foreach ($cleanup in $cleanupTasks.GetEnumerator()) {
+    $cleanupBorder = New-Object Windows.Controls.Border
+    $cleanupBorder.Background = $window.Resources["ButtonBackground"]
+    $cleanupBorder.BorderBrush = $window.Resources["ButtonBorder"]
+    $cleanupBorder.BorderThickness = "1"
+    $cleanupBorder.CornerRadius = "10"
+    $cleanupBorder.Margin = "8"
+    $cleanupBorder.Padding = "15"
+    $cleanupBorder.Width = "280"
+    $cleanupBorder.MinHeight = "180"
+
+    $cleanupStack = New-Object Windows.Controls.StackPanel
+
+    # Create header grid for toggle positioning
+    $headerGrid = New-Object Windows.Controls.Grid
+    
+    # Define columns for the grid
+    $col1 = New-Object Windows.Controls.ColumnDefinition
+    $col2 = New-Object Windows.Controls.ColumnDefinition
+    $col2.Width = "Auto"
+    $headerGrid.ColumnDefinitions.Add($col1)
+    $headerGrid.ColumnDefinitions.Add($col2)
+
+    # Create toggle switch
+    $toggleSwitch = New-Object Windows.Controls.Primitives.ToggleButton
+    $toggleSwitch.Style = $window.Resources["ToggleSwitchStyle"]
+    $toggleSwitch.Margin = "0,0,0,10"
+    $toggleSwitch.Tag = $cleanup.Value
+    [Windows.Controls.Grid]::SetColumn($toggleSwitch, 1)
+
+    # Create content
+    $cleanupName = New-Object Windows.Controls.TextBlock
+    $cleanupName.Text = $cleanup.Value.content
+    $cleanupName.FontWeight = "SemiBold"
+    $cleanupName.TextWrapping = "Wrap"
+    $cleanupName.Foreground = $window.Resources["TextColor"]
+    [Windows.Controls.Grid]::SetColumn($cleanupName, 0)
+    
+    $cleanupDescription = New-Object Windows.Controls.TextBlock
+    $cleanupDescription.Text = $cleanup.Value.description
+    $cleanupDescription.TextWrapping = "Wrap"
+    $cleanupDescription.Opacity = 0.7
+    $cleanupDescription.Margin = "0,5,0,0"
+    $cleanupDescription.Foreground = $window.Resources["TextColor"]
+
+    # Add elements to layout
+    $headerGrid.Children.Add($cleanupName)
+    $headerGrid.Children.Add($toggleSwitch)
+    
+    $cleanupStack.Children.Add($headerGrid)
+    $cleanupStack.Children.Add($cleanupDescription)
+    
+    $cleanupBorder.Child = $cleanupStack
+    $cleanupWrapPanel.Children.Add($cleanupBorder)
+}
+
+$categoriesPanel.Children.Add($appsWrapPanel)
+$optimizationsPanel.Children.Add($optimizationsWrapPanel)
+$cleanPanel.Children.Add($cleanupWrapPanel)
 
 # Event Handlers
 [Console]::SetOut([System.IO.TextWriter]::Null)
@@ -1465,6 +1823,7 @@ $closeButton.Add_Click({
     [void]$window.Close()
     if ($script:ShowOutput) { return } 
 })
+
 $minimizeButton.Add_Click({ $window.WindowState = "Minimized" })
 
 $themeToggle.Add_Click({
@@ -1490,7 +1849,8 @@ $appsTab.Add_Click({
     $appsContent.Visibility = "Visible"
     $optimizeContent.Visibility = "Collapsed"
     $infoContent.Visibility = "Collapsed"
-        $cleanContent.Visibility = "Collapsed"
+    $cleanContent.Visibility = "Collapsed"
+    $debloatContent.Visibility = "Collapsed"
 })
 
 $revertButton.Add_Click({
@@ -1513,6 +1873,7 @@ $optimizeTab.Add_Click({
     $optimizeContent.Visibility = "Visible"
     $infoContent.Visibility = "Collapsed"
     $cleanContent.Visibility = "Collapsed"
+    $debloatContent.Visibility = "Collapsed"
 })
 
 $cleanTab.Add_Click({
@@ -1520,15 +1881,28 @@ $cleanTab.Add_Click({
     $optimizeContent.Visibility = "Collapsed"
     $infoContent.Visibility = "Collapsed"
     $cleanContent.Visibility = "Visible"
+    $debloatContent.Visibility = "Collapsed"
+})
+
+$debloatTab.Add_Click({
+    $appsContent.Visibility = "Collapsed"
+    $optimizeContent.Visibility = "Collapsed"
+    $cleanContent.Visibility = "Collapsed"
+    $infoContent.Visibility = "Collapsed"
+    $debloatContent.Visibility = "Visible"
 })
 
 $cleanButton.Add_Click({
     Ensure-SingleRestorePoint
-    $selectedCleanups = $cleanPanel.Children | 
-        ForEach-Object { ($_.Child.Children | Where-Object { $_ -is [Windows.Controls.CheckBox] -and $_.IsChecked }) } |
-        ForEach-Object { $_.Tag }
+    $selectedCleanups = $cleanPanel.Children[0].Children | 
+        ForEach-Object {
+            $toggleSwitch = $_.Child.Children[0].Children[1]
+            if ($toggleSwitch.IsChecked) {
+                $toggleSwitch.Tag
+            }
+        }
 
-    if ($selectedCleanups.Count -eq 0) {
+    if ($null -eq $selectedCleanups -or @($selectedCleanups).Count -eq 0) {
         Write-Host "`nNo cleanup options selected." -ForegroundColor Yellow
         return
     }
@@ -1536,9 +1910,9 @@ $cleanButton.Add_Click({
     Write-Host "`n=== Starting Selected Cleanup Tasks ===" -ForegroundColor Cyan
 
     foreach ($cleanup in $selectedCleanups) {
-        Write-Host "`nExecuting $($cleanup.name)..." -ForegroundColor Yellow
+        Write-Host "`nExecuting $($cleanup.content)..." -ForegroundColor Yellow
         & $cleanup.action
-        Write-Host "$($cleanup.name) completed successfully!" -ForegroundColor Green
+        Write-Host "$($cleanup.content) completed successfully!" -ForegroundColor Green
     }
 
     Write-Host "`n=== All Selected Cleanup Tasks Completed ===`n" -ForegroundColor Cyan
@@ -1546,20 +1920,28 @@ $cleanButton.Add_Click({
 
 $runTweaksButton.Add_Click({
     Ensure-SingleRestorePoint
+    $tweaksApplied = $false
 
-    $selectedTweaks = $optimizationsPanel.Children | 
-        ForEach-Object { ($_.Child.Children | Where-Object { $_ -is [Windows.Controls.CheckBox] -and $_.IsChecked }) } |
-        ForEach-Object { $_.Tag }
+    # Process toggle switches if any are selected
+    $selectedTweaks = $optimizationsPanel.Children[0].Children | 
+        ForEach-Object {
+            $toggleSwitch = $_.Child.Children[0].Children[1]
+            if ($toggleSwitch.IsChecked) {
+                $tweaksApplied = $true
+                $toggleSwitch.Tag
+            }
+        }
 
-    Write-Host "`n=== Applying Selected Tweaks ===" -ForegroundColor Cyan
-
-    foreach ($tweak in $selectedTweaks) {
-        Write-Host "`nApplying $($tweak.name)..." -ForegroundColor Yellow
-        & $tweak.action
-        Write-Host "$($tweak.name) applied successfully!" -ForegroundColor Green
+    if ($tweaksApplied) {
+        Write-Host "`n=== Applying Selected Tweaks ===" -ForegroundColor Cyan
+        foreach ($tweak in $selectedTweaks) {
+            Write-Host "`nApplying $($tweak.content)..." -ForegroundColor Yellow
+            & $tweak.action
+            Write-Host "$($tweak.content) applied successfully!" -ForegroundColor Green
+        }
     }
 
-    # Get the selected DNS option
+    # Process DNS settings independently
     $selectedDNS = $DNSComboBox.SelectedItem.Content
     if ($selectedDNS -and $selectedDNS -ne "Select DNS") {
         Write-Host "`nModifying DNS settings..." -ForegroundColor Cyan
@@ -1589,36 +1971,36 @@ $runTweaksButton.Add_Click({
         }
         ipconfig /flushdns
         Write-Host "DNS settings updated successfully!" -ForegroundColor Green
+        $tweaksApplied = $true
     }
 
-    # Process other selected tweaks
-    $selectedTweaks = $optimizationsPanel.Children | 
-        ForEach-Object { ($_.Child.Children | Where-Object { $_ -is [Windows.Controls.CheckBox] -and $_.IsChecked }) } |
-        ForEach-Object { $_.Tag }
-    
-    foreach ($tweak in $selectedTweaks) {
-        Write-Host "`nApplying $($tweak.name)..." -ForegroundColor Yellow
-        & $tweak.action
-        Write-Host "$($tweak.name) applied successfully!" -ForegroundColor Green
+    if ($tweaksApplied) {
+        Write-Host "`n=== All Selected Changes Applied ===`n" -ForegroundColor Cyan
+    } else {
+        Write-Host "`nNo changes selected to apply." -ForegroundColor Yellow
     }
-
-    Write-Host "`n=== All Selected Tweaks Applied ===`n" -ForegroundColor Cyan
 })
 
 $infoTab.Add_Click({
+    
     $currentDateTime.Text = "Current Date/Time: " + (Get-Date -Format "MM/dd/yyyy HH:mm:ss")
     $appsContent.Visibility = "Collapsed"
     $optimizeContent.Visibility = "Collapsed"
     $infoContent.Visibility = "Visible"
+    $debloatContent.Visibility = "Collapsed"
     $cleanContent.Visibility = "Collapsed"
 })
 
 $installButton.Add_Click({
-    $selectedApps = $categoriesPanel.Children | 
-        ForEach-Object { ($_.Child.Children | Where-Object { $_ -is [Windows.Controls.CheckBox] -and $_.IsChecked }) } |
-        ForEach-Object { $_.Tag }
+    $selectedApps = $categoriesPanel.Children[0].Children | 
+        ForEach-Object { 
+            $toggleSwitch = $_.Child.Children[0].Children[1]  # Access the ToggleButton in the Grid
+            if ($toggleSwitch.IsChecked) {
+                $toggleSwitch.Tag
+            }
+        }
 
-    if ($selectedApps.Count -eq 0) {
+    if ($null -eq $selectedApps -or @($selectedApps).Count -eq 0) {
         Write-Host "`nNo apps selected for installation." -ForegroundColor Yellow
         return
     }
@@ -1628,31 +2010,102 @@ $installButton.Add_Click({
     foreach ($app in $selectedApps) {
         Write-Host "`nProcessing $($app.content)..." -ForegroundColor Cyan
         
-        # Check if app is installed (suppressing all output)
-        $null = winget list --exact -q $app.winget 2>&1
-        $checkInstalled = winget list --exact -q $app.winget | Out-String
-        
-        if ($checkInstalled -notmatch $app.winget) {
+        try {
+            $checkResult = winget list --exact -q $app.winget 2>$null
+            if ($checkResult -match $app.winget) {
+                Write-Host "$($app.content) is already installed." -ForegroundColor Blue
+                continue
+            }
+
             Write-Host "Installing $($app.content)..." -ForegroundColor Yellow
+            winget install -e --accept-source-agreements --accept-package-agreements $app.winget
             
-            # Run installation with suppressed output
-            $null = Start-Process winget -ArgumentList "install -e --accept-source-agreements --accept-package-agreements $($app.winget)" -Wait -NoNewWindow -RedirectStandardOutput "NUL" -RedirectStandardError "NUL"
-            
-            # Verify installation (suppressing all output)
-            $null = winget list --exact -q $app.winget 2>&1
-            $verifyInstalled = winget list --exact -q $app.winget | Out-String
-            
-            if ($verifyInstalled -match $app.winget) {
+            Start-Sleep -Seconds 2
+            $verifyResult = winget list --exact -q $app.winget 2>$null
+            if ($verifyResult -match $app.winget) {
                 Write-Host "$($app.content) installed successfully!" -ForegroundColor Green
             } else {
                 Write-Host "Failed to install $($app.content)." -ForegroundColor Red
             }
-        } else {
-            Write-Host "$($app.content) is already installed." -ForegroundColor Blue
+        }
+        catch {
+            Write-Host "Error processing $($app.content): $_" -ForegroundColor Red
         }
     }
 
     Write-Host "`n=== Installation Process Complete ===`n" -ForegroundColor Cyan
+})
+
+$uninstallButton.Add_Click({
+    $selectedApps = $categoriesPanel.Children[0].Children | 
+        ForEach-Object { 
+            $toggleSwitch = $_.Child.Children[0].Children[1]
+            if ($toggleSwitch.IsChecked) {
+                $toggleSwitch.Tag
+            }
+        }
+
+    if ($null -eq $selectedApps -or @($selectedApps).Count -eq 0) {
+        Write-Host "`nNo apps selected for uninstallation." -ForegroundColor Yellow
+        return
+    }
+
+    Write-Host "`n=== Starting Uninstallation Process ===" -ForegroundColor Cyan
+
+    foreach ($app in $selectedApps) {
+        Write-Host "`nProcessing $($app.content)..." -ForegroundColor Cyan
+        
+        try {
+            $checkResult = winget list --exact -q $app.winget 2>$null
+            if ($checkResult -match $app.winget) {
+                Write-Host "Uninstalling $($app.content)..." -ForegroundColor Yellow
+                winget uninstall --exact $app.winget
+                
+                Start-Sleep -Seconds 2
+                $verifyResult = winget list --exact -q $app.winget 2>$null
+                if ($verifyResult -notmatch $app.winget) {
+                    Write-Host "$($app.content) uninstalled successfully!" -ForegroundColor Green
+                } else {
+                    Write-Host "Failed to uninstall $($app.content)." -ForegroundColor Red
+                }
+            } else {
+                Write-Host "$($app.content) is not installed." -ForegroundColor Blue
+            }
+        }
+        catch {
+            Write-Host "Error processing $($app.content): $_" -ForegroundColor Red
+        }
+    }
+
+    Write-Host "`n=== Uninstallation Process Complete ===`n" -ForegroundColor Cyan
+})
+
+$debloatButton.Add_Click({
+    # Create a restore point first
+    Ensure-SingleRestorePoint
+
+    $selectedDebloatItems = $debloatPanel.Children[0].Children | 
+        ForEach-Object {
+            $toggleSwitch = $_.Child.Children[0].Children[1]
+            if ($toggleSwitch.IsChecked) {
+                $toggleSwitch.Tag
+            }
+        }
+
+    if ($null -eq $selectedDebloatItems -or @($selectedDebloatItems).Count -eq 0) {
+        Write-Host "`nNo debloat options selected." -ForegroundColor Yellow
+        return
+    }
+
+    Write-Host "`n=== Running Selected Debloat Actions ===" -ForegroundColor Cyan
+
+    foreach ($item in $selectedDebloatItems) {
+        Write-Host "`nExecuting $($item.content)..." -ForegroundColor Yellow
+        & $item.action
+        Write-Host "$($item.content) completed successfully!" -ForegroundColor Green
+    }
+
+    Write-Host "`n=== All Debloat Actions Completed ===`n" -ForegroundColor Cyan
 })
 
 # Enable Window Dragging
