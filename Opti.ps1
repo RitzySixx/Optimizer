@@ -107,48 +107,132 @@ $apps = @{
         description = "Google Chrome is a widely used web browser known for its speed, simplicity, and seamless integration with Google services."
         link = "https://www.google.com/chrome/"
         winget = "Google.Chrome"
+        choco = "googlechrome"
     }
     "Firefox" = @{
         content = "Firefox"
         description = "Mozilla Firefox is a fast, privacy-focused browser with extensive customization options."
         link = "https://www.mozilla.org/firefox/"
         winget = "Mozilla.Firefox"
+        choco = "firefox"
     }
     "Brave" = @{
         content = "Brave"
         description = "Brave is a privacy-focused web browser that blocks ads and trackers, offering a faster and safer browsing experience."
         link = "https://www.brave.com"
         winget = "Brave.Brave"
+        choco = "brave"
     }
     "Discord" = @{
         content = "Discord"
         description = "Discord is a popular platform for chat, voice, and video communication."
         link = "https://discord.com/"
         winget = "Discord.Discord"
+        choco = "discord"
     }
     "Steam" = @{
         content = "Steam"
         description = "Steam is the ultimate destination for playing, discussing, and creating games."
         link = "https://store.steampowered.com/"
         winget = "Valve.Steam"
+        choco = "steam"
     }
     "7-Zip" = @{
         content = "7-Zip"
         description = "7-Zip is a file archiver with a high compression ratio and strong encryption."
         link = "https://7-zip.org/"
         winget = "7zip.7zip"
+        choco = "7zip"
     }
     "WinRAR" = @{
         content = "WinRAR"
         description = "WinRAR is a powerful archive manager that allows you to create, manage, and extract compressed files."
         link = "https://www.win-rar.com/"
         winget = "RARLab.WinRAR"
+        choco = "winrar"
     }
     "OneDrive" = @{
         content = "OneDrive"
         description = "OneDrive is a cloud storage service provided by Microsoft, allowing users to store and share files securely across devices."
         link = "https://onedrive.live.com/"
         winget = "Microsoft.OneDrive"
+        choco = "onedrive"
+    }
+    "ISLC" = @{
+        content = "ISLC"
+        description = "Intelligent Standby List Cleaner (ISLC) is a utility that helps manage and clear the standby list in Windows, potentially improving system performance."
+        link = "https://www.wagnardsoft.com/ISLCw"
+        installType = "manual"
+        installInstructions = "Download from official website and extract the zip file"
+        choco = "islc"
+    }
+    "TimerResolution" = @{
+        content = "TimerResolution"
+        description = "TimerResolution allows you to adjust Windows timer resolution for better system responsiveness and reduced input lag."
+        link = "https://cms.lucashale.com/timer-resolution/"
+        installType = "manual"
+        installInstructions = "Download from official website and extract the zip file"
+        choco = "timer-resolution"
+    }
+    "Epic Games" = @{
+        content = "Epic Games"
+        description = "Epic Games Launcher for Fortnite, Unreal Engine, and many other games with regular free offerings."
+        link = "https://www.epicgames.com/"
+        winget = "EpicGames.EpicGamesLauncher"
+        choco = "epic-games-launcher"
+    }
+    "Ubisoft Connect" = @{
+        content = "Ubisoft Connect"
+        description = "Ubisoft's gaming platform for Assassin's Creed, Far Cry, and other Ubisoft titles."
+        link = "https://ubisoftconnect.com/"
+        winget = "Ubisoft.Connect"
+        choco = "ubisoft-connect"
+    }
+    "Razer Synapse" = @{
+    content = "Razer Synapse"
+    description = "Configuration software for Razer gaming peripherals with macro and lighting controls."
+    link = "https://www.razer.com/synapse-3"
+    winget = "Razer.Synapse"
+    choco = "razer-synapse-3"
+    }
+
+"Razer Cortex" = @{
+    content = "Razer Cortex"
+    description = "Game booster and optimization tool that helps improve gaming performance."
+    link = "https://www.razer.com/cortex"
+    winget = "Razer.Cortex"
+    choco = "razer-cortex"
+    }
+
+"AMD Radeon Software" = @{
+    content = "AMD Radeon Software"
+    description = "Complete software suite for AMD graphics cards with performance tuning and streaming features."
+    link = "https://www.amd.com/en/technologies/radeon-software"
+    winget = "AMD.RyzenMaster"
+    }
+
+"Streamlabs" = @{
+    content = "Streamlabs"
+    description = "All-in-one streaming app with custom overlays, alerts, and chat management."
+    link = "https://streamlabs.com/"
+    winget = "Streamlabs.Streamlabs"
+    choco = "streamlabs-obs"
+    }
+
+"OBS Studio" = @{
+    content = "OBS Studio"
+    description = "Professional broadcasting software for live streaming and recording."
+    link = "https://obsproject.com/"
+    winget = "OBSProject.OBSStudio"
+    choco = "obs-studio"
+    }
+
+"NVIDIA GeForce Experience" = @{
+    content = "NVIDIA GeForce Experience"
+    description = "Game optimization and driver management tool with built-in streaming features."
+    link = "https://www.nvidia.com/en-us/geforce/geforce-experience/"
+    winget = "Nvidia.GeForceExperience"
+    choco = "geforce-experience"
     }
 }
 
@@ -1291,6 +1375,43 @@ $cleanupTasks = @{
             <!-- Content Area -->
             <Border Grid.Column="1" Background="{DynamicResource ButtonBackground}" CornerRadius="8" Margin="0,8,8,8">
                 <Grid>
+<TextBox x:Name="SearchBox"
+         Width="875"
+         Height="30" 
+         Margin="20,35,20,0"
+         HorizontalAlignment="Left"
+         VerticalAlignment="Top"
+         Background="#1E1E1E"
+         Foreground="White"
+         BorderBrush="#333333"
+         BorderThickness="1"
+         Padding="10,5"
+         FontSize="14"
+         VerticalContentAlignment="Center"
+         Panel.ZIndex="999">
+    <TextBox.Resources>
+        <Style TargetType="{x:Type Border}">
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+    </TextBox.Resources>
+    <TextBox.Style>
+        <Style TargetType="TextBox">
+            <Style.Triggers>
+                <Trigger Property="Text" Value="">
+                    <Setter Property="Background">
+                        <Setter.Value>
+                            <VisualBrush Stretch="None" AlignmentX="Left">
+                                <VisualBrush.Visual>
+                                    <TextBlock Text="Search..." Foreground="#808080" Margin="10,5,0,0"/>
+                                </VisualBrush.Visual>
+                            </VisualBrush>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </TextBox.Style>
+</TextBox>
 
         <StackPanel Orientation="Horizontal" 
                     HorizontalAlignment="Right" 
@@ -1318,7 +1439,7 @@ $cleanupTasks = @{
         </StackPanel>
 
                             <!-- Apps Content -->
-                <Grid x:Name="AppsContent" Visibility="Visible" Margin="0,35,0,-10">
+                <Grid x:Name="AppsContent" Visibility="Visible" Margin="0,50,0,-10">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="10">
                         <WrapPanel x:Name="CategoriesPanel" Orientation="Horizontal"/>
                     </ScrollViewer>
@@ -1343,7 +1464,7 @@ $cleanupTasks = @{
                     </Grid>
 
                     <!-- Clean Content -->
-                    <Grid x:Name="CleanContent" Visibility="Collapsed" Margin="0,35,0,-10">
+                    <Grid x:Name="CleanContent" Visibility="Collapsed" Margin="0,50,0,-10">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="10">
                             <StackPanel x:Name="CleanPanel"/>
                         </ScrollViewer>
@@ -1358,7 +1479,7 @@ $cleanupTasks = @{
                     </Grid>
 
                     <!-- Optimize Content -->
-                    <Grid x:Name="OptimizeContent" Visibility="Collapsed" Margin="0,35,0,-10">
+                    <Grid x:Name="OptimizeContent" Visibility="Collapsed" Margin="0,50,0,-10">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
@@ -1398,7 +1519,7 @@ $cleanupTasks = @{
                     </Grid>
 
                     <!-- Debloat Content -->
-                    <Grid x:Name="DebloatContent" Visibility="Collapsed" Margin="0,35,0,-10">
+                    <Grid x:Name="DebloatContent" Visibility="Collapsed" Margin="0,50,0,-10">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
@@ -1424,7 +1545,7 @@ $cleanupTasks = @{
                     </Grid>
 
                     <!-- Info Content -->
-                    <Grid x:Name="InfoContent" Visibility="Collapsed" Margin="0,35,0,0">
+                    <Grid x:Name="InfoContent" Visibility="Collapsed" Margin="0,50,0,0">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="20">
                             <StackPanel Margin="10">
                                 <!-- Tool Information -->
@@ -1523,6 +1644,74 @@ $debloatTab = $window.FindName("DebloatTab")
 $debloatContent = $window.FindName("DebloatContent")
 $debloatPanel = $window.FindName("DebloatPanel")
 $debloatButton = $window.FindName("DebloatButton")
+$SearchBox = $window.FindName("SearchBox")
+
+# Create and configure SearchBox
+$SearchBox.Height = 30
+$SearchBox.Width = 875
+$SearchBox.Margin = "20,35,20,0"
+$SearchBox.HorizontalAlignment = "Left"
+$SearchBox.VerticalAlignment = "Top"
+$SearchBox.Background = "#1E1E1E"
+$SearchBox.Foreground = "White"
+$SearchBox.BorderBrush = "#333333"
+$SearchBox.BorderThickness = 1
+$SearchBox.Padding = "10,5"
+$SearchBox.FontSize = 14
+$SearchBox.VerticalContentAlignment = "Center"
+[System.Windows.Controls.Panel]::SetZIndex($SearchBox, 999)
+
+# Set up the placeholder text
+$placeholderText = "Search..."
+$SearchBox.Add_GotFocus({
+    if ($this.Text -eq $placeholderText) {
+        $this.Text = ""
+        $this.Foreground = "White"
+    }
+})
+$SearchBox.Add_LostFocus({
+    if ([string]::IsNullOrEmpty($this.Text)) {
+        $this.Text = $placeholderText
+        $this.Foreground = "#808080"
+    }
+})
+# Initialize with placeholder
+$SearchBox.Text = $placeholderText
+$SearchBox.Foreground = "#808080"
+
+# Add corner radius
+$borderStyle = New-Object Windows.Style([Windows.Controls.Border])
+$borderStyle.Setters.Add((New-Object Windows.Setter([Windows.Controls.Border]::CornerRadiusProperty, "6")))
+$SearchBox.Resources.Add([Windows.Controls.Border], $borderStyle)
+
+# Add real-time search functionality
+$SearchBox.Add_TextChanged({
+    if ($this.Text -eq $placeholderText) { return }
+    $searchText = $this.Text.ToLower()
+    $panels = @($categoriesPanel, $optimizationsPanel, $cleanPanel, $debloatPanel)
+    
+    foreach ($panel in $panels) {
+        if ($panel -and $panel.Children.Count -gt 0) {
+            $wrapPanel = $panel.Children[0]
+            foreach ($border in $wrapPanel.Children) {
+                $stack = $border.Child
+                $headerGrid = $stack.Children[0]
+                $description = $stack.Children[1]
+                
+                $title = $headerGrid.Children[0].Text
+                $desc = $description.Text
+                
+                $border.Visibility = if ([string]::IsNullOrEmpty($searchText) -or 
+                    $title.ToLower().Contains($searchText) -or 
+                    $desc.ToLower().Contains($searchText)) {
+                    'Visible'
+                } else {
+                    'Collapsed'
+                }
+            }
+        }
+    }
+})
 
 # Theme State
 $script:isDarkMode = $true
@@ -1993,8 +2182,8 @@ $infoTab.Add_Click({
 
 $installButton.Add_Click({
     $selectedApps = $categoriesPanel.Children[0].Children | 
-        ForEach-Object { 
-            $toggleSwitch = $_.Child.Children[0].Children[1]  # Access the ToggleButton in the Grid
+        ForEach-Object {
+            $toggleSwitch = $_.Child.Children[0].Children[1]
             if ($toggleSwitch.IsChecked) {
                 $toggleSwitch.Tag
             }
@@ -2006,39 +2195,58 @@ $installButton.Add_Click({
     }
 
     Write-Host "`n=== Starting Installation Process ===" -ForegroundColor Cyan
-
     foreach ($app in $selectedApps) {
         Write-Host "`nProcessing $($app.content)..." -ForegroundColor Cyan
         
+        # Check if manual installation is required
+        if ($app.installType -eq "manual") {
+            Write-Host "This application requires manual installation." -ForegroundColor Yellow
+            Write-Host "Please download from: $($app.link)" -ForegroundColor Yellow
+            Write-Host "Instructions: $($app.installInstructions)" -ForegroundColor Yellow
+            continue
+        }
+
         try {
+            # Try winget first
             $checkResult = winget list --exact -q $app.winget 2>$null
             if ($checkResult -match $app.winget) {
                 Write-Host "$($app.content) is already installed." -ForegroundColor Blue
                 continue
             }
 
-            Write-Host "Installing $($app.content)..." -ForegroundColor Yellow
+            Write-Host "Attempting installation with winget..." -ForegroundColor Yellow
             winget install -e --accept-source-agreements --accept-package-agreements $app.winget
             
             Start-Sleep -Seconds 2
             $verifyResult = winget list --exact -q $app.winget 2>$null
+            
             if ($verifyResult -match $app.winget) {
                 Write-Host "$($app.content) installed successfully!" -ForegroundColor Green
             } else {
-                Write-Host "Failed to install $($app.content)." -ForegroundColor Red
+                # Try Chocolatey as fallback
+                if ($app.choco) {
+                    Write-Host "Winget installation failed. Trying Chocolatey..." -ForegroundColor Yellow
+                    choco install $app.choco -y
+                    if ($?) {
+                        Write-Host "$($app.content) installed successfully with Chocolatey!" -ForegroundColor Green
+                    } else {
+                        Write-Host "Failed to install $($app.content) with Chocolatey." -ForegroundColor Red
+                    }
+                } else {
+                    Write-Host "Failed to install $($app.content)." -ForegroundColor Red
+                }
             }
         }
         catch {
             Write-Host "Error processing $($app.content): $_" -ForegroundColor Red
         }
     }
-
     Write-Host "`n=== Installation Process Complete ===`n" -ForegroundColor Cyan
 })
 
 $uninstallButton.Add_Click({
     $selectedApps = $categoriesPanel.Children[0].Children | 
-        ForEach-Object { 
+        ForEach-Object {
             $toggleSwitch = $_.Child.Children[0].Children[1]
             if ($toggleSwitch.IsChecked) {
                 $toggleSwitch.Tag
@@ -2051,10 +2259,14 @@ $uninstallButton.Add_Click({
     }
 
     Write-Host "`n=== Starting Uninstallation Process ===" -ForegroundColor Cyan
-
     foreach ($app in $selectedApps) {
         Write-Host "`nProcessing $($app.content)..." -ForegroundColor Cyan
         
+        if ($app.installType -eq "manual") {
+            Write-Host "This application requires manual uninstallation." -ForegroundColor Yellow
+            continue
+        }
+
         try {
             $checkResult = winget list --exact -q $app.winget 2>$null
             if ($checkResult -match $app.winget) {
@@ -2063,10 +2275,22 @@ $uninstallButton.Add_Click({
                 
                 Start-Sleep -Seconds 2
                 $verifyResult = winget list --exact -q $app.winget 2>$null
+                
                 if ($verifyResult -notmatch $app.winget) {
                     Write-Host "$($app.content) uninstalled successfully!" -ForegroundColor Green
                 } else {
-                    Write-Host "Failed to uninstall $($app.content)." -ForegroundColor Red
+                    # Try Chocolatey uninstall if winget fails
+                    if ($app.choco) {
+                        Write-Host "Trying to uninstall with Chocolatey..." -ForegroundColor Yellow
+                        choco uninstall $app.choco -y
+                        if ($?) {
+                            Write-Host "$($app.content) uninstalled successfully with Chocolatey!" -ForegroundColor Green
+                        } else {
+                            Write-Host "Failed to uninstall $($app.content)." -ForegroundColor Red
+                        }
+                    } else {
+                        Write-Host "Failed to uninstall $($app.content)." -ForegroundColor Red
+                    }
                 }
             } else {
                 Write-Host "$($app.content) is not installed." -ForegroundColor Blue
@@ -2076,7 +2300,6 @@ $uninstallButton.Add_Click({
             Write-Host "Error processing $($app.content): $_" -ForegroundColor Red
         }
     }
-
     Write-Host "`n=== Uninstallation Process Complete ===`n" -ForegroundColor Cyan
 })
 
