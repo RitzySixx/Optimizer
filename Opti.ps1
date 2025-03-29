@@ -227,6 +227,30 @@ $apps = @{
     choco = "obs-studio"
     }
 
+"SteelSeries GG" = @{
+    content = "SteelSeries GG"
+    description = "All-in-one platform for SteelSeries gear configuration, performance monitoring, and game capture"
+    link = "https://steelseries.com/gg"
+    winget = "SteelSeries.GG"
+    choco = "steelseries-gg"
+}
+
+"Spotify" = @{
+    content = "Spotify"
+    description = "Digital music streaming service with millions of songs and podcasts"
+    link = "https://spotify.com/"
+    winget = "Spotify.Spotify"
+    choco = "spotify"
+}
+
+"Spicetify" = @{
+    content = "Spicetify"
+    description = "Powerful CLI tool for Spotify customization with themes and mods"
+    link = "https://spicetify.app/"
+    winget = "Spicetify.Spicetify"
+    choco = "spicetify-cli"
+}
+
 "NVIDIA GeForce Experience" = @{
     content = "NVIDIA GeForce Experience"
     description = "Game optimization and driver management tool with built-in streaming features."
@@ -462,6 +486,75 @@ $debloatItems = @{
             Write-Host "LinkedIn has been completely removed!" -ForegroundColor Green
         }
     }
+    "RemoveNews" = @{
+    content = "Remove News Feed"
+    description = "Will be uninstalled. Microsoft News feed and widgets"
+    action = {
+        Write-Host "Removing News Feed..." -ForegroundColor Cyan
+        Get-AppxPackage "Microsoft.BingNews" -AllUsers | Remove-AppxPackage -AllUsers
+        Write-Host "News Feed removed!" -ForegroundColor Green
+    }
+}
+
+"RemoveGetHelp" = @{
+    content = "Remove Get Help"
+    description = "Will be uninstalled. Microsoft support assistant"
+    action = {
+        Write-Host "Removing Get Help..." -ForegroundColor Cyan
+        Get-AppxPackage "Microsoft.GetHelp" -AllUsers | Remove-AppxPackage -AllUsers
+        Write-Host "Get Help removed!" -ForegroundColor Green
+    }
+}
+
+"RemoveGetStarted" = @{
+    content = "Remove Get Started"
+    description = "Will be uninstalled. Windows tutorial app"
+    action = {
+        Write-Host "Removing Get Started..." -ForegroundColor Cyan
+        Get-AppxPackage "Microsoft.Getstarted" -AllUsers | Remove-AppxPackage -AllUsers
+        Write-Host "Get Started removed!" -ForegroundColor Green
+    }
+}
+
+"RemoveMaps" = @{
+    content = "Remove Maps"
+    description = "Will be uninstalled. Offline Windows Maps app"
+    action = {
+        Write-Host "Removing Maps..." -ForegroundColor Cyan
+        Get-AppxPackage "Microsoft.WindowsMaps" -AllUsers | Remove-AppxPackage -AllUsers
+        Write-Host "Maps removed!" -ForegroundColor Green
+        }
+    }
+
+"RemoveFeedback" = @{
+    content = "Remove Feedback Hub"
+    description = "Will be uninstalled. Windows Feedback collection app"
+    action = {
+        Write-Host "Removing Feedback Hub..." -ForegroundColor Cyan
+        Get-AppxPackage "Microsoft.WindowsFeedbackHub" -AllUsers | Remove-AppxPackage -AllUsers
+        Write-Host "Feedback Hub removed!" -ForegroundColor Green
+    }
+}
+
+"RemovePhone" = @{
+    content = "Remove Your Phone"
+    description = "Will be uninstalled. Phone companion app"
+    action = {
+        Write-Host "Removing Your Phone..." -ForegroundColor Cyan
+        Get-AppxPackage "Microsoft.YourPhone" -AllUsers | Remove-AppxPackage -AllUsers
+        Write-Host "Your Phone removed!" -ForegroundColor Green
+    }
+}
+
+"RemovePeople" = @{
+    content = "Remove People"
+    description = "Will be uninstalled. People app for contacts"
+    action = {
+        Write-Host "Removing People app..." -ForegroundColor Cyan
+        Get-AppxPackage "Microsoft.People" -AllUsers | Remove-AppxPackage -AllUsers
+        Write-Host "People app removed!" -ForegroundColor Green
+        }
+    }
 }
 
 $optimizations = @{
@@ -484,13 +577,14 @@ $optimizations = @{
                         "TcpTimedWaitDelay" = 0x1e
                         "EnableWsd" = 0
                         "GlobalMaxTcpWindowSize" = 0xffff
+                        "TcpWindowSize" = 0xffff
                         "MaxConnectionsPer1_0Server" = 0xa
-                        "MaxConnectionsPerServer" = 0xa
+                        "MaxConnectionsPerServer" = 0x0
                         "MaxFreeTcbs" = 0x10000
                         "EnableTCPA" = 0
                         "Tcp1323Opts" = 1
                         "TcpCreateAndConnectTcbRateLimitDepth" = 0
-                        "TcpMaxDataRetransmissions" = 3
+                        "TcpMaxDataRetransmissions" = 2
                         "TcpMaxDupAcks" = 2
                         "TcpMaxSendFree" = 0xffff
                         "TcpNumConnections" = 0xfffffe
@@ -508,6 +602,11 @@ $optimizations = @{
                     }
                     "HKLM:\SOFTWARE\Microsoft\MSMQ\Parameters" = @{
                         "TCPNoDelay" = 1
+                    }
+                    "HKLM:\SYSTEM\CurrentControlSet\Services\NetBT\Parameters" = @{
+                        "NameSrvQueryTimeout" = 3000
+                        "NodeType" = 2
+                        "SessionKeepAlive" = 1  
                     }
                     "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\ServiceProvider" = @{
                         "LocalPriority" = 4
@@ -1285,33 +1384,42 @@ $optimizations = @{
 }
 
  # cleanup tab
-$cleanupTasks = @{
+ $cleanupTasks = @{
     "Temp Folders" = @{
         content = "Clean Temporary Files"
-        description = "Removes files from Windows Temp and %temp% folders"
+        description = "Removes non-gaming files from Windows Temp folders"
         action = {
-            Write-Host "Cleaning Windows Temp folders..." -ForegroundColor Yellow
-            Remove-Item -Path "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
-            Remove-Item -Path "C:\Windows\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue
-            Write-Host "Temporary files cleaned successfully!" -ForegroundColor Green
+            Write-Host "Cleaning Windows Temp folders (Game-Safe)..." -ForegroundColor Yellow
+            
+            $excludePaths = @(
+                "*game*", "*steam*", "*epic*", "*ubisoft*", "*origin*",
+                "*battle*", "*riot*", "*fortnite*", "*siege*"
+            )
+            
+            Get-ChildItem -Path "$env:TEMP" -Exclude $excludePaths | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+            Get-ChildItem -Path "C:\Windows\Temp" -Exclude $excludePaths | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+            
+            Write-Host "Game-safe temporary files cleanup completed!" -ForegroundColor Green
         }
     }
+    
     "Recycle Bin" = @{
         content = "Empty Recycle Bin"
-        description = "Permanently removes all items from the Recycle Bin"
+        description = "Safely removes non-gaming items from the Recycle Bin"
         action = {
             Write-Host "Emptying Recycle Bin..." -ForegroundColor Yellow
             Clear-RecycleBin -Force -ErrorAction SilentlyContinue
             Write-Host "Recycle Bin emptied successfully!" -ForegroundColor Green
         }
     }
+    
     "DNS Cache" = @{
         content = "Flush DNS Cache"
-        description = "Clears DNS resolver cache to fix potential connectivity issues"
+        description = "Optimizes DNS resolver cache for better gaming connectivity"
         action = {
-            Write-Host "Flushing DNS Cache..." -ForegroundColor Yellow
+            Write-Host "Optimizing DNS Cache for gaming..." -ForegroundColor Yellow
             ipconfig /flushdns | Out-Null
-            Write-Host "DNS Cache flushed successfully!" -ForegroundColor Green
+            Write-Host "DNS Cache optimized successfully!" -ForegroundColor Green
         }
     }
 "Drive Cleanup" = @{
@@ -1322,30 +1430,109 @@ $cleanupTasks = @{
         
         $regPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches"
         
-        # Performance-safe cleanup items
+        # Enhanced gaming-safe cleanup items
         $cleanItems = @(
-            "Downloaded Program Files"
             "Old ChkDsk Files"
             "Previous Installations"
             "Setup Log Files"
             "Temporary Setup Files"
             "Windows Error Reporting Files"
             "Windows Upgrade Log Files"
+            "Memory Dump Files"
+            "System Queue Files"
+            "Windows Defense Files"
+        )
+
+        # Comprehensive gaming paths protection
+        $excludePaths = @(
+            "$env:ProgramFiles\Steam"
+            "$env:ProgramFiles(x86)\Steam"
+            "$env:ProgramFiles\Epic Games"
+            "$env:ProgramFiles\Origin"
+            "$env:ProgramFiles\Ubisoft"
+            "$env:ProgramFiles\Common Files\Ubisoft"
+            "$env:ProgramFiles(x86)\Ubisoft"
+            "$env:PROGRAMDATA\Ubisoft"
+            "$env:LOCALAPPDATA\Ubisoft"
+            "$env:PROGRAMDATA\Epic"
+            "$env:LOCALAPPDATA\Epic"
+            "$env:PROGRAMDATA\Steam"
+            "$env:LOCALAPPDATA\Steam"
+            "$env:USERPROFILE\Documents\My Games"
+            "$env:LOCALAPPDATA\FortniteGame"
+            "$env:PROGRAMDATA\Battle.net"
+            "$env:PROGRAMDATA\Riot Games"
+            "$env:LOCALAPPDATA\Temp\*game*"
+            "$env:LOCALAPPDATA\Temp\*steam*"
+            "$env:LOCALAPPDATA\Temp\*epic*"
+            "$env:LOCALAPPDATA\Temp\*ubisoft*"
+            "$env:LOCALAPPDATA\Temp\*origin*"
+            "$env:LOCALAPPDATA\Temp\*battle*"
+            "$env:LOCALAPPDATA\Temp\*riot*"
         )
 
         foreach ($item in $cleanItems) {
             $itemPath = Join-Path $regPath $item
             if (Test-Path $itemPath) {
-                Set-ItemProperty -Path $itemPath -Name "StateFlags0001" -Value 2 -Type DWord -ErrorAction SilentlyContinue
+                Set-ItemProperty -Path $itemPath -Name "StateFlags0001" -Value 2 -Type DWord
             }
         }
+
+        # Safe cleanup excluding all gaming paths
+        Get-ChildItem -Path $env:TEMP -Exclude $excludePaths | Remove-Item -Recurse -Force
         
         Start-Process cleanmgr -ArgumentList "/sagerun:1" -Wait -NoNewWindow
         
         Write-Host "Gaming-Optimized Cleanup completed successfully!" -ForegroundColor Green
         }
     }
+    "Browser Cache" = @{
+    content = "Clean Browser Cache"
+    description = "Cleans only non-essential temporary browser files"
+    action = {
+        Write-Host "Performing minimal browser cleanup..." -ForegroundColor Yellow
+        # Only cleans ad-related temp files
+        Remove-Item "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Cache\AdNetworks\*" -Recurse -Force -ErrorAction SilentlyContinue
+        Write-Host "Non-essential browser files cleaned!" -ForegroundColor Green
+    }
 }
+
+"Windows Update Cleanup" = @{
+    content = "Clean Update Files"
+    description = "Removes only fully installed and archived update files"
+    action = {
+        Write-Host "Cleaning archived Windows Update files..." -ForegroundColor Yellow
+        # Only removes successfully installed updates older than 30 days
+        $path = "C:\Windows\SoftwareDistribution\Download"
+        Get-ChildItem -Path $path -Recurse | Where-Object {($_.LastWriteTime -lt (Get-Date).AddDays(-30))} | Remove-Item -Force -ErrorAction SilentlyContinue
+        Write-Host "Old update files cleaned!" -ForegroundColor Green
+    }
+}
+
+"System Logs" = @{
+    content = "Clean System Logs"
+    description = "Clears only archived system logs"
+    action = {
+        Write-Host "Cleaning archived system logs..." -ForegroundColor Yellow
+        # Only clears logs older than 7 days
+        Get-EventLog -LogName * | ForEach-Object { Clear-EventLog -LogName $_.Log -Before (Get-Date).AddDays(-7) } 2>$null
+        Write-Host "Archived logs cleaned!" -ForegroundColor Green
+    }
+}
+
+"Old Installers" = @{
+    content = "Clean Old Installers"
+    description = "Removes only completed installer files from Downloads"
+    action = {
+        Write-Host "Cleaning old installer files..." -ForegroundColor Yellow
+        $downloadsPath = (New-Object -ComObject Shell.Application).NameSpace('shell:Downloads').Self.Path
+        Get-ChildItem -Path $downloadsPath -Include "*.exe", "*.msi" | 
+        Where-Object {($_.LastWriteTime -lt (Get-Date).AddDays(-30)) -and ($_.Name -notmatch 'game|steam|epic|origin|ubisoft|battle|riot')} |
+        Remove-Item -Force -ErrorAction SilentlyContinue
+        Write-Host "Old installers cleaned!" -ForegroundColor Green
+        }
+    }
+ }
 
 # XAML Code
 [xml]$xaml = @'
@@ -2636,4 +2823,3 @@ $window.Add_MouseLeftButtonDown({ $window.DragMove() })
 
 # Show Window
 $window.ShowDialog()
-
