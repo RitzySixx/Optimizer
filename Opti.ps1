@@ -21,6 +21,13 @@ try {
     Write-Host "Unable to check for updates. Continuing with current version..." -ForegroundColor Yellow
 }
 
+# Self-elevate the script if required
+if (-Not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] 'Administrator')) {
+    $CommandLine = "-File `"" + $MyInvocation.MyCommand.Path + "`" " + $MyInvocation.UnboundArguments
+    Start-Process -FilePath PowerShell.exe -Verb RunAs -ArgumentList $CommandLine
+    Exit
+}
+
 # Redirect and suppress all output
 $script:UIOutput = New-Object System.IO.StringWriter
 $script:restorePointCreated = $false
@@ -77,6 +84,18 @@ function Ensure-SingleRestorePoint {
         Checkpoint-Computer -Description "Ritzy Optimizer Changes" -RestorePointType "MODIFY_SETTINGS"
         $script:restorePointCreated = $true
         Write-Host "System Restore Point created successfully!" -ForegroundColor Green
+    }
+}
+
+# function to ensure Chocolatey is available and install it
+function Ensure-Chocolatey {
+    if (!(Get-Command choco -ErrorAction SilentlyContinue)) {
+        Write-Host "Installing Chocolatey..." -ForegroundColor Yellow
+        Set-ExecutionPolicy Bypass -Scope Process -Force
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+        Invoke-WebRequest https://community.chocolatey.org/install.ps1 -UseBasicParsing | Invoke-Expression
+        refreshenv
+        Write-Host "Chocolatey installed successfully!" -ForegroundColor Green
     }
 }
 
@@ -162,17 +181,7 @@ $apps = @{
         content = "ISLC"
         description = "Intelligent Standby List Cleaner (ISLC) is a utility that helps manage and clear the standby list in Windows, potentially improving system performance."
         link = "https://www.wagnardsoft.com/ISLCw"
-        installType = "manual"
-        installInstructions = "Download from official website and extract the zip file"
         choco = "islc"
-    }
-    "TimerResolution" = @{
-        content = "TimerResolution"
-        description = "TimerResolution allows you to adjust Windows timer resolution for better system responsiveness and reduced input lag."
-        link = "https://cms.lucashale.com/timer-resolution/"
-        installType = "manual"
-        installInstructions = "Download from official website and extract the zip file"
-        choco = "timer-resolution"
     }
     "Epic Games" = @{
         content = "Epic Games"
@@ -235,6 +244,14 @@ $apps = @{
     choco = "steelseries-gg"
 }
 
+"Visual Studio Code" = @{
+    content = "Visual Studio Code"
+    description = "powerful code editor developed by Microsoft. It supports multiple programming languages, offers built-in Git integration, debugging tools, extensions, and a highly customizable interface."
+    link = "https://code.visualstudio.com/"
+    winget = "Microsoft.VisualStudioCode"
+    choco = "vscode"
+}
+
 "Spotify" = @{
     content = "Spotify"
     description = "Digital music streaming service with millions of songs and podcasts"
@@ -251,12 +268,26 @@ $apps = @{
     choco = "spicetify-cli"
 }
 
-"NVIDIA GeForce Experience" = @{
+"Everything Tool" = @{
+    content = "Everything Tool"
+    description = "Everything is search engine that locates files and folders by filename instantly for Windows. Unlike Windows search Everything initially displays every file and folder on your computer (hence the name Everything). You type in a search filter to limit what files and folders are displayed."
+    link = "https://www.voidtools.com/"
+    winget = "voidtools.Everything"
+    choco = "everything"
+}
+
+"Proton VPN" = @{
+    content = "Proton VPN"
+    description = "When you use ProtonVPN to browse the web, your Internet connection is encrypted. By routing your connection through encrypted tunnels, ProtonVPNs advanced security features ensure that an attacker cannot eavesdrop on your connection. It also allows you to access websites that might be blocked in your country."
+    link = "https://protonvpn.com/"
+    choco = "protonvpn"
+}
+
+"NVIDIA Geforce Experience" = @{
     content = "NVIDIA GeForce Experience"
     description = "Game optimization and driver management tool with built-in streaming features."
     link = "https://www.nvidia.com/en-us/geforce/geforce-experience/"
-    winget = "Nvidia.GeForceExperience"
-    choco = "geforce-experience"
+    choco = "nvidia-app"
     }
 }
 
@@ -2652,7 +2683,44 @@ $infoTab.Add_Click({
     $cleanContent.Visibility = "Collapsed"
 })
 
+function Remove-AppTraces {
+    param($app)
+    
+    $paths = @(
+        "$env:ProgramFiles\$($app.content)",
+        "${env:ProgramFiles(x86)}\$($app.content)",
+        "$env:LOCALAPPDATA\$($app.content)",
+        "$env:APPDATA\$($app.content)"
+    )
+
+    foreach ($path in $paths) {
+        if (Test-Path $path) {
+            Remove-Item $path -Recurse -Force
+            Write-Host "Cleaned up: $path" -ForegroundColor Yellow
+        }
+    }
+}
+
+function Ensure-Chocolatey {
+    if (!(Get-Command choco -ErrorAction SilentlyContinue)) {
+        Write-Host "Installing Chocolatey..." -ForegroundColor Yellow
+        Set-ExecutionPolicy Bypass -Scope Process -Force
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+        Invoke-WebRequest https://community.chocolatey.org/install.ps1 -UseBasicParsing | Invoke-Expression
+        refreshenv
+        Write-Host "Chocolatey installed successfully!" -ForegroundColor Green
+    }
+}
+
+# Self-elevate the script if required
+if (-Not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] 'Administrator')) {
+    $CommandLine = "-File `"" + $MyInvocation.MyCommand.Path + "`" " + $MyInvocation.UnboundArguments
+    Start-Process -FilePath PowerShell.exe -Verb RunAs -ArgumentList $CommandLine
+    Exit
+}
+
 $installButton.Add_Click({
+    Ensure-Chocolatey
     $selectedApps = $categoriesPanel.Children[0].Children | 
         ForEach-Object {
             $toggleSwitch = $_.Child.Children[0].Children[1]
@@ -2669,8 +2737,7 @@ $installButton.Add_Click({
     Write-Host "`n=== Starting Installation Process ===" -ForegroundColor Cyan
     foreach ($app in $selectedApps) {
         Write-Host "`nProcessing $($app.content)..." -ForegroundColor Cyan
-        
-        # Check if manual installation is required
+
         if ($app.installType -eq "manual") {
             Write-Host "This application requires manual installation." -ForegroundColor Yellow
             Write-Host "Please download from: $($app.link)" -ForegroundColor Yellow
@@ -2679,34 +2746,90 @@ $installButton.Add_Click({
         }
 
         try {
-            # Try winget first
-            $checkResult = winget list --exact -q $app.winget 2>$null
-            if ($checkResult -match $app.winget) {
+            $installed = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*, HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | 
+                Where-Object { $_.DisplayName -like "*$($app.content)*" }
+            
+            if ($installed) {
                 Write-Host "$($app.content) is already installed." -ForegroundColor Blue
                 continue
             }
 
-            Write-Host "Attempting installation with winget..." -ForegroundColor Yellow
-            winget install -e --accept-source-agreements --accept-package-agreements $app.winget
-            
-            Start-Sleep -Seconds 2
-            $verifyResult = winget list --exact -q $app.winget 2>$null
-            
-            if ($verifyResult -match $app.winget) {
-                Write-Host "$($app.content) installed successfully!" -ForegroundColor Green
-            } else {
-                # Try Chocolatey as fallback
-                if ($app.choco) {
-                    Write-Host "Winget installation failed. Trying Chocolatey..." -ForegroundColor Yellow
-                    choco install $app.choco -y
-                    if ($?) {
-                        Write-Host "$($app.content) installed successfully with Chocolatey!" -ForegroundColor Green
-                    } else {
-                        Write-Host "Failed to install $($app.content) with Chocolatey." -ForegroundColor Red
-                    }
-                } else {
-                    Write-Host "Failed to install $($app.content)." -ForegroundColor Red
+            if ($app.winget) {
+                Write-Host "Attempting installation with winget..." -ForegroundColor Yellow
+                winget install -e --accept-source-agreements --accept-package-agreements $app.winget
+                Start-Sleep -Seconds 2
+
+                $installed = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*, HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | 
+                    Where-Object { $_.DisplayName -like "*$($app.content)*" }
+                
+                if ($installed) {
+                    Write-Host "$($app.content) installed successfully with winget!" -ForegroundColor Green
+                    continue
                 }
+            }
+
+            if ($app.choco) {
+                Write-Host "Installing with Chocolatey..." -ForegroundColor Yellow
+                
+                # Pre-installation cleanup
+                Get-Process | Where-Object { $_.Name -like "*choco*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+                Remove-Item "$env:TEMP\chocolatey\*" -Recurse -Force -ErrorAction SilentlyContinue
+                Remove-Item "C:\ProgramData\chocolatey\lib-bad\*" -Recurse -Force -ErrorAction SilentlyContinue
+                
+                # Initialize printed lines tracking
+                $printed = New-Object System.Collections.ArrayList
+                
+                # Monitor output in real-time while process is running
+                $downloadCompleted = $false
+                $installationStarted = $false
+
+                # Simplified and optimized installation command
+                $process = Start-Process -FilePath "choco" -ArgumentList "install $($app.choco) -y --force --no-progress --ignore-checksums" -WindowStyle Hidden -PassThru -RedirectStandardOutput "$env:TEMP\choco_output.txt" -RedirectStandardError "$env:TEMP\choco_error.txt"
+
+                while (!$process.HasExited) {
+                    if (Test-Path "$env:TEMP\choco_output.txt") {
+                        Get-Content "$env:TEMP\choco_output.txt" -Tail 1 | ForEach-Object {
+                            if ($_ -and -not $printed.Contains($_)) {
+                                Write-Host $_
+                                $printed.Add($_) | Out-Null
+                                
+                                # Check for download completion and exe path indication
+                                if ($_ -match "Download of .+ completed\.") {
+                                    Start-Sleep -Seconds 10  # Allow installation to proceed
+                                }
+                                
+                                if ($downloadCompleted -and $_ -match "\.exe$") {
+                                    Start-Sleep -Seconds 15  # Give installation time to complete
+                                    
+                                    # Force terminate the process and continue
+                                    $process | Stop-Process -Force
+                                    Get-Process | Where-Object { $_.Name -like "*choco*" } | Stop-Process -Force
+                                    # Remove this line to avoid duplicate success messages
+                                    # Write-Host "$($app.content) installed successfully!" -ForegroundColor Green
+                                    $installed = $true  # Mark as successfully installed
+                                    break
+                                }
+                            }
+                        }
+                    }
+                    Start-Sleep -Milliseconds 100
+                }
+                
+                # Cleanup
+                Get-Process | Where-Object { $_.Name -like "*choco*" } | Stop-Process -Force
+                Remove-Item "$env:TEMP\choco_output.txt", "$env:TEMP\choco_error.txt" -Force -ErrorAction SilentlyContinue
+                
+                Start-Sleep -Seconds 2
+                $installed = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*, HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | 
+                    Where-Object { $_.DisplayName -like "*$($app.content)*" }
+
+                if ($installed) {
+                    Write-Host "$($app.content) installed successfully with Chocolatey!" -ForegroundColor Green
+                } else {
+                    Write-Host "Failed to install $($app.content) with Chocolatey." -ForegroundColor Red
+                }
+            } else {
+                Write-Host "No package manager options available for $($app.content)." -ForegroundColor Red
             }
         }
         catch {
@@ -2717,6 +2840,7 @@ $installButton.Add_Click({
 })
 
 $uninstallButton.Add_Click({
+    Ensure-Chocolatey
     $selectedApps = $categoriesPanel.Children[0].Children | 
         ForEach-Object {
             $toggleSwitch = $_.Child.Children[0].Children[1]
@@ -2733,39 +2857,73 @@ $uninstallButton.Add_Click({
     Write-Host "`n=== Starting Uninstallation Process ===" -ForegroundColor Cyan
     foreach ($app in $selectedApps) {
         Write-Host "`nProcessing $($app.content)..." -ForegroundColor Cyan
-        
+
         if ($app.installType -eq "manual") {
             Write-Host "This application requires manual uninstallation." -ForegroundColor Yellow
             continue
         }
 
         try {
-            $checkResult = winget list --exact -q $app.winget 2>$null
-            if ($checkResult -match $app.winget) {
-                Write-Host "Uninstalling $($app.content)..." -ForegroundColor Yellow
+            $installed = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*, HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | 
+                Where-Object { $_.DisplayName -like "*$($app.content)*" }
+
+            if (!$installed) {
+                Write-Host "$($app.content) is not installed." -ForegroundColor Blue
+                continue
+            }
+
+            Write-Host "Uninstalling $($app.content)..." -ForegroundColor Yellow
+
+            if ($app.winget) {
                 winget uninstall --exact $app.winget
+                Start-Sleep -Seconds 2
+
+                $stillInstalled = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*, HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | 
+                    Where-Object { $_.DisplayName -like "*$($app.content)*" }
+
+                if (!$stillInstalled) {
+                    Write-Host "$($app.content) uninstalled successfully with winget!" -ForegroundColor Green
+                    Remove-AppTraces $app
+                    continue
+                }
+            }
+
+            if ($app.choco) {
+                # Initialize printed lines tracking
+                $printed = New-Object System.Collections.ArrayList
+                
+                # Start the process with proper output handling
+                $process = Start-Process -FilePath "choco" -ArgumentList "uninstall", $app.choco, "-y", "--force", "--no-progress", "--confirm", "--accept-license", "--yes", "--allow-empty-checksums" -WindowStyle Hidden -PassThru -RedirectStandardOutput "$env:TEMP\choco_output.txt" -RedirectStandardError "$env:TEMP\choco_error.txt"
+                
+                # Monitor output in real-time while process is running
+                while (!$process.HasExited) {
+                    if (Test-Path "$env:TEMP\choco_output.txt") {
+                        Get-Content "$env:TEMP\choco_output.txt" -Tail 1 | ForEach-Object {
+                            if ($_ -and -not $printed.Contains($_)) {
+                                Write-Host $_
+                                $printed.Add($_) | Out-Null
+                            }
+                        }
+                    }
+                    Start-Sleep -Milliseconds 100
+                }
+                
+                # Force close any remaining choco processes
+                Get-Process | Where-Object { $_.Name -like "*choco*" } | Stop-Process -Force
+                
+                # Clean up temp files
+                Remove-Item "$env:TEMP\choco_output.txt", "$env:TEMP\choco_error.txt" -Force -ErrorAction SilentlyContinue
                 
                 Start-Sleep -Seconds 2
-                $verifyResult = winget list --exact -q $app.winget 2>$null
-                
-                if ($verifyResult -notmatch $app.winget) {
-                    Write-Host "$($app.content) uninstalled successfully!" -ForegroundColor Green
+                $stillInstalled = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*, HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | 
+                    Where-Object { $_.DisplayName -like "*$($app.content)*" }
+
+                if (!$stillInstalled) {
+                    Write-Host "$($app.content) uninstalled successfully with Chocolatey!" -ForegroundColor Green
+                    Remove-AppTraces $app
                 } else {
-                    # Try Chocolatey uninstall if winget fails
-                    if ($app.choco) {
-                        Write-Host "Trying to uninstall with Chocolatey..." -ForegroundColor Yellow
-                        choco uninstall $app.choco -y
-                        if ($?) {
-                            Write-Host "$($app.content) uninstalled successfully with Chocolatey!" -ForegroundColor Green
-                        } else {
-                            Write-Host "Failed to uninstall $($app.content)." -ForegroundColor Red
-                        }
-                    } else {
-                        Write-Host "Failed to uninstall $($app.content)." -ForegroundColor Red
-                    }
+                    Write-Host "Failed to uninstall $($app.content) with Chocolatey." -ForegroundColor Red
                 }
-            } else {
-                Write-Host "$($app.content) is not installed." -ForegroundColor Blue
             }
         }
         catch {
