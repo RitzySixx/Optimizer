@@ -1497,18 +1497,6 @@ $optimizations = @{
     }
 }
 
-"Windows Update Cleanup" = @{
-    content = "Clean Update Files"
-    description = "Removes only fully installed and archived update files"
-    action = {
-        Write-Host "Cleaning archived Windows Update files..." -ForegroundColor Yellow
-        # Only removes successfully installed updates older than 30 days
-        $path = "C:\Windows\SoftwareDistribution\Download"
-        Get-ChildItem -Path $path -Recurse | Where-Object {($_.LastWriteTime -lt (Get-Date).AddDays(-30))} | Remove-Item -Force -ErrorAction SilentlyContinue
-        Write-Host "Old update files cleaned!" -ForegroundColor Green
-    }
-}
-
 "System Logs" = @{
     content = "Clean System Logs"
     description = "Clears only archived system logs"
