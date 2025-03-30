@@ -76,6 +76,103 @@ foreach ($assembly in @('PresentationFramework', 'PresentationCore', 'WindowsBas
 # Clear any remaining output
 Clear-Host
 
+function Show-TermsOfService {
+    Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase
+    
+    # Create the TOS overlay window
+    $tosXaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Terms of Service" Height="625" Width="550" WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize" AllowsTransparency="True" WindowStyle="None" Background="Transparent">
+    <Border CornerRadius="15" Background="#222222" BorderBrush="#CC0000" BorderThickness="2" Margin="20">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="15" ShadowDepth="5" Opacity="0.7"/>
+        </Border.Effect>
+        <Grid Margin="25">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            
+            <TextBlock Grid.Row="0" Text="TERMS OF SERVICE" 
+                       FontSize="26" FontWeight="Bold" Foreground="#CC0000" 
+                       HorizontalAlignment="Center" Margin="0,5,0,15"/>
+            
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <TextBlock TextWrapping="Wrap" Margin="0,0,0,15" Foreground="White" FontSize="15" FontWeight="SemiBold">
+                        Please read and acknowledge the following terms:
+                    </TextBlock>
+                    
+                    <TextBlock TextWrapping="Wrap" Margin="10,0,0,15" Foreground="White" FontSize="14">
+                        • We cannot guarantee a specific value of FPS and/or performance benefit from applying any optimization, 
+                          as each system and configuration is different.
+                    </TextBlock>
+                    
+                    <TextBlock TextWrapping="Wrap" Margin="10,0,0,15" Foreground="White" FontSize="14">
+                        • If you are unsure about an optimization, do <Run FontWeight="Bold">NOT</Run> apply it.
+                    </TextBlock>
+                    
+                    <TextBlock TextWrapping="Wrap" Margin="10,0,0,15" Foreground="White" FontSize="14">
+                        • By running this application, you agree that we / Ritzy is <Run FontWeight="Bold">NOT</Run> 
+                          responsible for any damages or malfunctions that may occur from an optimization.
+                    </TextBlock>
+                    
+                    <TextBlock TextWrapping="Wrap" Margin="10,0,0,15" Foreground="White" FontSize="14">
+                        • Some optimizations may modify system settings. While these changes are generally safe, 
+                          they may affect other applications or system behavior.
+                    </TextBlock>
+                    
+                    <TextBlock TextWrapping="Wrap" Margin="10,0,0,15" Foreground="White" FontSize="14">
+                        • If at any time there is an issue, you can revert changes with the "Revert Changes" button 
+                          and use the system restore point that we create before applying any optimizations.
+                    </TextBlock>
+                    
+                    <TextBlock TextWrapping="Wrap" Margin="10,0,0,15" Foreground="White" FontSize="14">
+                        • This application is provided "as is" without warranty of any kind, either expressed or implied.
+                    </TextBlock>
+                </StackPanel>
+            </ScrollViewer>
+            
+            <Button Grid.Row="2" x:Name="TOSAgreeButton" Content="I AGREE" 
+                    Background="#CC0000" Foreground="White" FontWeight="Bold" FontSize="16" BorderThickness="0"
+                    Width="200" Height="45" Margin="0,15,0,0" 
+                    HorizontalAlignment="Center">
+                <Button.Resources>
+                    <Style TargetType="Border">
+                        <Setter Property="CornerRadius" Value="8"/>
+                    </Style>
+                </Button.Resources>
+                <Button.Effect>
+                    <DropShadowEffect BlurRadius="5" ShadowDepth="2" Opacity="0.7"/>
+                </Button.Effect>
+            </Button>
+        </Grid>
+    </Border>
+</Window>
+"@
+
+    $tosReader = [System.Xml.XmlReader]::Create([System.IO.StringReader]::new($tosXaml))
+    $tosWindow = [Windows.Markup.XamlReader]::Load($tosReader)
+    $tosAgreeButton = $tosWindow.FindName("TOSAgreeButton")
+
+    $script:userAgreed = $false
+    $tosAgreeButton.Add_Click({
+        $script:userAgreed = $true
+        $tosWindow.Close()
+    })
+
+    # Make the TOS window stay on top
+    $tosWindow.Topmost = $true
+    
+    # Show the TOS window as a dialog
+    $tosWindow.ShowDialog() | Out-Null
+    
+    return $script:userAgreed
+}
+
 # Function to create restore point if not already created
 function Ensure-SingleRestorePoint {
     if (-not $script:restorePointCreated) {
@@ -589,176 +686,374 @@ $debloatItems = @{
 }
 
 $optimizations = @{
-    "Ping Optimization" = @{
-        content = "Ping / Latency Optimizer"
-        description = "Comprehensive Ping optimization for better ping and reduced latency"
+    "Optimize_TCP_IP_Settings" = @{
+        content = "Optimize TCP/IP Network Settings"
+        description = "Optimizes TCP/IP parameters to improve network performance, reduce latency, and enhance connection stability for gaming and streaming"
+        category = "Latency"
         action = {
-                Write-Host "`n=== Starting Ping Optimization Process ===" -ForegroundColor Cyan
-                Write-Host "This will optimize various Ping settings for better performance." -ForegroundColor Yellow
-                
-                $registryChanges = @{
-                    "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" = @{
-                        "DefaultTTL" = 0x40
-                        "DisableTaskOffload" = 1
-                        "EnableConnectionRateLimiting" = 0
-                        "EnableDCA" = 1
-                        "EnablePMTUBHDetect" = 0
-                        "EnablePMTUDiscovery" = 1
-                        "EnableRSS" = 1
-                        "TcpTimedWaitDelay" = 0x1e
-                        "EnableWsd" = 0
-                        "GlobalMaxTcpWindowSize" = 0xffff
-                        "TcpWindowSize" = 0xffff
-                        "MaxConnectionsPer1_0Server" = 0xa
-                        "MaxConnectionsPerServer" = 0x0
-                        "MaxFreeTcbs" = 0x10000
-                        "EnableTCPA" = 0
-                        "Tcp1323Opts" = 1
-                        "TcpCreateAndConnectTcbRateLimitDepth" = 0
-                        "TcpMaxDataRetransmissions" = 2
-                        "TcpMaxDupAcks" = 2
-                        "TcpMaxSendFree" = 0xffff
-                        "TcpNumConnections" = 0xfffffe
-                        "MaxHashTableSize" = 0x10000
-                        "MaxUserPort" = 0xfffe
-                        "SackOpts" = 1
-                        "SynAttackProtect" = 1
-                        "DelayedAckFrequency" = 1
-                        "DelayedAckTicks" = 1
-                        "CongestionAlgorithm" = 1
-                        "MultihopSets" = 0xf
-                        "FastCopyReceiveThreshold" = 0x4000
-                        "FastSendDatagramThreshold" = 0x4000
-                        "DisableUserTOSSetting" = 0
-                    }
-                    "HKLM:\SOFTWARE\Microsoft\MSMQ\Parameters" = @{
-                        "TCPNoDelay" = 1
-                    }
-                    "HKLM:\SYSTEM\CurrentControlSet\Services\NetBT\Parameters" = @{
-                        "NameSrvQueryTimeout" = 3000
-                        "NodeType" = 2
-                        "SessionKeepAlive" = 1  
-                    }
-                    "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\ServiceProvider" = @{
-                        "LocalPriority" = 4
-                        "HostsPriority" = 5
-                        "DnsPriority" = 6
-                        "NetbtPriority" = 7
-                    }
-                    "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" = @{
-                        "NetworkThrottlingIndex" = 0xffffffff
-                        "SystemResponsiveness" = 0
-                    }
-                    "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Psched" = @{
-                        "NonBestEffortLimit" = 0
-                    }
-                    "HKLM:\SYSTEM\CurrentControlSet\Services\Psched" = @{
-                        "NonBestEffortLimit" = 0
-                    }
-                    "HKLM:\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters" = @{
-                        "MaxCmds" = 0x1e
-                        "MaxThreads" = 0x1e
-                        "MaxCollectionCount" = 0x20
-                    }
-                    "HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters" = @{
-                        "IRPStackSize" = 0x32
-                        "SizReqBuf" = 0x4410
-                        "Size" = 3
-                        "MaxWorkItems" = 0x2000
-                        "MaxMpxCt" = 0x800
-                        "MaxCmds" = 0x800
-                        "DisableStrictNameChecking" = 1
-                        "autodisconnect" = 0xffffffff
-                        "EnableOplocks" = 0
-                        "SharingViolationDelay" = 0
-                        "SharingViolationRetries" = 0
-                    }
-                    "HKLM:\SYSTEM\CurrentControlSet\Services\AFD\Parameters" = @{
-                        "DefaultReceiveWindow" = 0x4000
-                        "DefaultSendWindow" = 0x4000
-                        "FastCopyReceiveThreshold" = 0x4000
-                        "FastSendDatagramThreshold" = 0x4000
-                        "DynamicSendBufferDisable" = 0
-                        "IgnorePushBitOnReceives" = 1
-                        "NonBlockingSendSpecialBuffering" = 1
-                        "DisableRawSecurity" = 1
-                    }
+            Write-Host "`n=== Starting TCP/IP Settings Optimization ===" -ForegroundColor Cyan
+            Write-Host "This will optimize TCP/IP parameters for better network performance." -ForegroundColor Yellow
+            
+            $tcpipSettings = @{
+                "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" = @{
+                    "DefaultTTL" = 0x40
+                    "DisableTaskOffload" = 1
+                    "EnableConnectionRateLimiting" = 0
+                    "EnableDCA" = 1
+                    "EnablePMTUBHDetect" = 0
+                    "EnablePMTUDiscovery" = 1
+                    "EnableRSS" = 1
+                    "TcpTimedWaitDelay" = 0x1e
+                    "EnableWsd" = 0
+                    "GlobalMaxTcpWindowSize" = 0xffff
+                    "TcpWindowSize" = 0xffff
+                    "MaxConnectionsPer1_0Server" = 0xa
+                    "MaxConnectionsPerServer" = 0x0
+                    "MaxFreeTcbs" = 0x10000
+                    "EnableTCPA" = 0
+                    "Tcp1323Opts" = 1
+                    "TcpCreateAndConnectTcbRateLimitDepth" = 0
+                    "TcpMaxDataRetransmissions" = 2
+                    "TcpMaxDupAcks" = 2
+                    "TcpMaxSendFree" = 0xffff
+                    "TcpNumConnections" = 0xfffffe
+                    "MaxHashTableSize" = 0x10000
+                    "MaxUserPort" = 0xfffe
+                    "SackOpts" = 1
+                    "SynAttackProtect" = 1
+                    "DelayedAckFrequency" = 1
+                    "DelayedAckTicks" = 1
+                    "CongestionAlgorithm" = 1
+                    "MultihopSets" = 0xf
+                    "FastCopyReceiveThreshold" = 0x4000
+                    "FastSendDatagramThreshold" = 0x4000
+                    "DisableUserTOSSetting" = 0
                 }
-
-                 # Get all network interfaces and verify/create Nagle's Algorithm settings
-                $interfaces = Get-ChildItem "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces"
-                foreach ($interface in $interfaces) {
-                    Write-Host "Configuring interface: $($interface.PSChildName)" -ForegroundColor Yellow
-                    
-                    # Check and create TcpAckFrequency
-                    if (!(Get-ItemProperty -Path $interface.PSPath -Name "TcpAckFrequency" -ErrorAction SilentlyContinue)) {
-                        Write-Host "Creating TcpAckFrequency registry value..." -ForegroundColor Green
-                        New-ItemProperty -Path $interface.PSPath -Name "TcpAckFrequency" -Value 1 -PropertyType DWord -Force | Out-Null
-                    } else {
-                        Write-Host "Setting TcpAckFrequency value..." -ForegroundColor Green
-                        Set-ItemProperty -Path $interface.PSPath -Name "TcpAckFrequency" -Value 1 -Type DWord
-                    }
-                    
-                    # Check and create TCPNoDelay
-                    if (!(Get-ItemProperty -Path $interface.PSPath -Name "TCPNoDelay" -ErrorAction SilentlyContinue)) {
-                        Write-Host "Creating TCPNoDelay registry value..." -ForegroundColor Green
-                        New-ItemProperty -Path $interface.PSPath -Name "TCPNoDelay" -Value 1 -PropertyType DWord -Force | Out-Null
-                    } else {
-                        Write-Host "Setting TCPNoDelay value..." -ForegroundColor Green
-                        Set-ItemProperty -Path $interface.PSPath -Name "TCPNoDelay" -Value 1 -Type DWord
-                    }
-                }
-                Write-Host "Nagle's Algorithm successfully disabled on all interfaces!" -ForegroundColor Green
-
-                foreach ($path in $registryChanges.Keys) {
-                    Write-Host "`nConfiguring: $path" -ForegroundColor Yellow
-                    
-                    if (!(Test-Path $path)) {
-                        Write-Host "Creating new registry path..." -ForegroundColor Gray
-                        New-Item -Path $path -Force | Out-Null
-                    }
-                    
-                    foreach ($name in $registryChanges[$path].Keys) {
-                        Write-Host "Setting $name to $($registryChanges[$path][$name])" -ForegroundColor Green
-                        Set-ItemProperty -Path $path -Name $name -Value $registryChanges[$path][$name] -Type DWord
-                    }
-                }
-                                # Disable Power Saving for Network Adapters
-                Write-Host "`nDisabling Power Saving for Network Adapters..." -ForegroundColor Yellow
-                
-                # Get all network adapters
-                Get-NetAdapter | ForEach-Object {
-                    Write-Host "Processing adapter: $($_.Name)" -ForegroundColor Green
-                    
-                    # Disable Power Saving features
-                    Set-NetAdapterPowerManagement -Name $_.Name -SelectiveSuspend Disabled -WakeOnMagicPacket Disabled -WakeOnPattern Disabled
-                    
-                    # Additional power saving registry settings
-                    $adapterPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}\$($_.InterfaceIndex)"
-                    if (Test-Path $adapterPath) {
-                        Set-ItemProperty -Path $adapterPath -Name "PnPCapabilities" -Value 24 -Type DWord
-                        Set-ItemProperty -Path $adapterPath -Name "PowerSavingEnabled" -Value 0 -Type DWord
-                    }
-                }
-                Write-Host "Power Saving features disabled on all network adapters!" -ForegroundColor Green
-
-                Write-Host "`nConfiguring QoS Settings..." -ForegroundColor Yellow
-                Write-Host "Setting TCP Autotuning Level to Off" -ForegroundColor Green
-                Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\QoS" -Name "Tcp Autotuning Level" -Value "Off" -Type String
-                
-                Write-Host "Setting DSCP Marking Request to Ignored" -ForegroundColor Green
-                Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\QoS" -Name "Application DSCP Marking Request" -Value "Ignored" -Type String
-                
-                Write-Host "Configuring NLA Settings" -ForegroundColor Green
-                Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\services\Tcpip\QoS" -Name "Do not use NLA" -Value "1" -Type String
-
-                Write-Host "`n=== Latency Optimizations Complete! ===" -ForegroundColor Cyan
             }
+            
+            foreach ($path in $tcpipSettings.Keys) {
+                Write-Host "`nConfiguring: $path" -ForegroundColor Yellow
+                
+                if (!(Test-Path $path)) {
+                    Write-Host "Creating new registry path..." -ForegroundColor Gray
+                    New-Item -Path $path -Force | Out-Null
+                }
+                
+                foreach ($name in $tcpipSettings[$path].Keys) {
+                    Write-Host "Setting $name to $($tcpipSettings[$path][$name])" -ForegroundColor Green
+                    Set-ItemProperty -Path $path -Name $name -Value $tcpipSettings[$path][$name] -Type DWord
+                }
+            }
+            
+            Write-Host "`n=== TCP/IP Settings Optimization Complete! ===" -ForegroundColor Cyan
         }
+    }
+    
+    "Disable_Nagles_Algorithm" = @{
+        content = "Disable Nagle's Algorithm (Reduce Latency)"
+        description = "Disables Nagle's Algorithm on all network interfaces to reduce latency for gaming, video conferencing, and real-time applications"
+        category = "Latency"
+        action = {
+            Write-Host "`n=== Starting Nagle's Algorithm Disabling Process ===" -ForegroundColor Cyan
+            Write-Host "This will disable Nagle's Algorithm on all network interfaces to reduce latency." -ForegroundColor Yellow
+            
+            # Get all network interfaces
+            $interfaces = Get-ChildItem "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces"
+            foreach ($interface in $interfaces) {
+                Write-Host "Configuring interface: $($interface.PSChildName)" -ForegroundColor Yellow
+                
+                # Check and create TcpAckFrequency
+                if (!(Get-ItemProperty -Path $interface.PSPath -Name "TcpAckFrequency" -ErrorAction SilentlyContinue)) {
+                    Write-Host "Creating TcpAckFrequency registry value..." -ForegroundColor Green
+                    New-ItemProperty -Path $interface.PSPath -Name "TcpAckFrequency" -Value 1 -PropertyType DWord -Force | Out-Null
+                } else {
+                    Write-Host "Setting TcpAckFrequency value..." -ForegroundColor Green
+                    Set-ItemProperty -Path $interface.PSPath -Name "TcpAckFrequency" -Value 1 -Type DWord
+                }
+                
+                # Check and create TCPNoDelay
+                if (!(Get-ItemProperty -Path $interface.PSPath -Name "TCPNoDelay" -ErrorAction SilentlyContinue)) {
+                    Write-Host "Creating TCPNoDelay registry value..." -ForegroundColor Green
+                    New-ItemProperty -Path $interface.PSPath -Name "TCPNoDelay" -Value 1 -PropertyType DWord -Force | Out-Null
+                } else {
+                    Write-Host "Setting TCPNoDelay value..." -ForegroundColor Green
+                    Set-ItemProperty -Path $interface.PSPath -Name "TCPNoDelay" -Value 1 -Type DWord
+                }
+            }
+            
+            Write-Host "`n=== Nagle's Algorithm Successfully Disabled on All Interfaces! ===" -ForegroundColor Cyan
+        }
+    }
+    
+    "Disable_Network_Power_Saving" = @{
+        content = "Disable Network Power Saving Features"
+        description = "Disables all power saving features on network adapters to prevent latency spikes, connection drops, and performance degradation"
+        category = "Latency"
+        action = {
+            Write-Host "`n=== Starting Network Power Saving Disabling Process ===" -ForegroundColor Cyan
+            Write-Host "This will disable power saving features on all network adapters." -ForegroundColor Yellow
+            
+            # Get all network adapters
+            Get-NetAdapter | ForEach-Object {
+                Write-Host "Processing adapter: $($_.Name)" -ForegroundColor Green
+                
+                # Disable Power Saving features
+                try {
+                    Set-NetAdapterPowerManagement -Name $_.Name -SelectiveSuspend Disabled -WakeOnMagicPacket Disabled -WakeOnPattern Disabled -ErrorAction SilentlyContinue
+                } catch {
+                    Write-Host "Could not set power management for $($_.Name). This may be normal for some adapters." -ForegroundColor Yellow
+                }
+                
+                # Additional power saving registry settings
+                $adapterPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}\$($_.InterfaceIndex)"
+                if (Test-Path $adapterPath) {
+                    Set-ItemProperty -Path $adapterPath -Name "PnPCapabilities" -Value 24 -Type DWord -ErrorAction SilentlyContinue
+                    Set-ItemProperty -Path $adapterPath -Name "PowerSavingEnabled" -Value 0 -Type DWord -ErrorAction SilentlyContinue
+                }
+            }
+            
+            Write-Host "`n=== Network Power Saving Features Successfully Disabled! ===" -ForegroundColor Cyan
+        }
+    }
+    
+    "Configure_QoS_Settings" = @{
+        content = "Optimize Quality of Service (QoS) Settings"
+        description = "Configures Quality of Service settings to prioritize your network traffic and improve performance for gaming and streaming"
+        category = "Latency"
+        action = {
+            Write-Host "`n=== Starting QoS Configuration Process ===" -ForegroundColor Cyan
+            Write-Host "This will configure Quality of Service settings for better network performance." -ForegroundColor Yellow
+            
+            # Create QoS policy paths if they don't exist
+            $qosPaths = @(
+                "HKLM:\SOFTWARE\Policies\Microsoft\Windows\QoS",
+                "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Psched",
+                "HKLM:\SYSTEM\CurrentControlSet\Services\Psched",
+                "HKLM:\SYSTEM\CurrentControlSet\services\Tcpip\QoS"
+            )
+            
+            foreach ($path in $qosPaths) {
+                if (!(Test-Path $path)) {
+                    New-Item -Path $path -Force | Out-Null
+                }
+            }
+            
+            # Configure QoS settings
+            Write-Host "Setting TCP Autotuning Level to Off" -ForegroundColor Green
+            Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\QoS" -Name "Tcp Autotuning Level" -Value "Off" -Type String -ErrorAction SilentlyContinue
+            
+            Write-Host "Setting DSCP Marking Request to Ignored" -ForegroundColor Green
+            Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\QoS" -Name "Application DSCP Marking Request" -Value "Ignored" -Type String -ErrorAction SilentlyContinue
+            
+            Write-Host "Setting NonBestEffortLimit to 0" -ForegroundColor Green
+            Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Psched" -Name "NonBestEffortLimit" -Value 0 -Type DWord -ErrorAction SilentlyContinue
+            Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Psched" -Name "NonBestEffortLimit" -Value 0 -Type DWord -ErrorAction SilentlyContinue
+            
+            # Configure NLA Settings
+            Write-Host "Configuring NLA Settings" -ForegroundColor Green
+            Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\services\Tcpip\QoS" -Name "Do not use NLA" -Value "1" -Type String -ErrorAction SilentlyContinue
+            
+            Write-Host "`n=== QoS Settings Configuration Complete! ===" -ForegroundColor Cyan
+        }
+    }
+    
+    "Optimize_Network_Throttling" = @{
+        content = "Disable Network Throttling"
+        description = "Disables Windows network throttling to improve network throughput for high-bandwidth applications like gaming and streaming"
+        category = "Latency"
+        action = {
+            Write-Host "`n=== Starting Network Throttling Optimization ===" -ForegroundColor Cyan
+            Write-Host "This will disable network throttling to improve network throughput." -ForegroundColor Yellow
+            
+            $systemProfilePath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile"
+            if (!(Test-Path $systemProfilePath)) {
+                New-Item -Path $systemProfilePath -Force | Out-Null
+            }
+            
+            Write-Host "Setting NetworkThrottlingIndex to maximum value" -ForegroundColor Green
+            Set-ItemProperty -Path $systemProfilePath -Name "NetworkThrottlingIndex" -Value 0xffffffff -Type DWord
+            
+            Write-Host "Setting SystemResponsiveness to prioritize network traffic" -ForegroundColor Green
+            Set-ItemProperty -Path $systemProfilePath -Name "SystemResponsiveness" -Value 0 -Type DWord
+            
+            Write-Host "`n=== Network Throttling Optimization Complete! ===" -ForegroundColor Cyan
+        }
+    }
+    
+    "Optimize_MSMQ_Settings" = @{
+        content = "Optimize Microsoft Message Queuing (MSMQ)"
+        description = "Optimizes Microsoft Message Queuing settings to improve network communication performance for applications that use MSMQ"
+        category = "Latency"
+        action = {
+            Write-Host "`n=== Starting MSMQ Settings Optimization ===" -ForegroundColor Cyan
+            Write-Host "This will optimize Microsoft Message Queuing settings." -ForegroundColor Yellow
+            
+            $msmqPath = "HKLM:\SOFTWARE\Microsoft\MSMQ\Parameters"
+            if (!(Test-Path $msmqPath)) {
+                New-Item -Path $msmqPath -Force | Out-Null
+            }
+            
+            Write-Host "Setting TCPNoDelay for MSMQ" -ForegroundColor Green
+            Set-ItemProperty -Path $msmqPath -Name "TCPNoDelay" -Value 1 -Type DWord
+            
+            Write-Host "`n=== MSMQ Settings Optimization Complete! ===" -ForegroundColor Cyan
+        }
+    }
+    
+    "Optimize_NetBT_Settings" = @{
+        content = "Optimize NetBIOS Settings"
+        description = "Optimizes NetBIOS over TCP/IP settings to improve network name resolution and connection performance"
+        category = "Latency"
+        action = {
+            Write-Host "`n=== Starting NetBIOS Settings Optimization ===" -ForegroundColor Cyan
+            Write-Host "This will optimize NetBIOS over TCP/IP settings." -ForegroundColor Yellow
+            
+            $netbtPath = "HKLM:\SYSTEM\CurrentControlSet\Services\NetBT\Parameters"
+            if (!(Test-Path $netbtPath)) {
+                New-Item -Path $netbtPath -Force | Out-Null
+            }
+            
+            Write-Host "Setting NameSrvQueryTimeout" -ForegroundColor Green
+            Set-ItemProperty -Path $netbtPath -Name "NameSrvQueryTimeout" -Value 3000 -Type DWord
+            
+            Write-Host "Setting NodeType to P-node (peer-to-peer)" -ForegroundColor Green
+            Set-ItemProperty -Path $netbtPath -Name "NodeType" -Value 2 -Type DWord
+            
+            Write-Host "Enabling SessionKeepAlive" -ForegroundColor Green
+            Set-ItemProperty -Path $netbtPath -Name "SessionKeepAlive" -Value 1 -Type DWord
+            
+            Write-Host "`n=== NetBIOS Settings Optimization Complete! ===" -ForegroundColor Cyan
+        }
+    }
+    
+    "Optimize_DNS_Priority" = @{
+        content = "Optimize DNS Resolution Priority"
+        description = "Optimizes DNS resolution priority settings to speed up website and network resource access by improving name resolution"
+        category = "Latency"
+        action = {
+            Write-Host "`n=== Starting DNS Priority Optimization ===" -ForegroundColor Cyan
+            Write-Host "This will optimize DNS resolution priority." -ForegroundColor Yellow
+            
+            $serviceProviderPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\ServiceProvider"
+            if (!(Test-Path $serviceProviderPath)) {
+                New-Item -Path $serviceProviderPath -Force | Out-Null
+            }
+            
+            Write-Host "Setting LocalPriority" -ForegroundColor Green
+            Set-ItemProperty -Path $serviceProviderPath -Name "LocalPriority" -Value 4 -Type DWord
+            
+            Write-Host "Setting HostsPriority" -ForegroundColor Green
+            Set-ItemProperty -Path $serviceProviderPath -Name "HostsPriority" -Value 5 -Type DWord
+            
+            Write-Host "Setting DnsPriority" -ForegroundColor Green
+            Set-ItemProperty -Path $serviceProviderPath -Name "DnsPriority" -Value 6 -Type DWord
+            
+            Write-Host "Setting NetbtPriority" -ForegroundColor Green
+            Set-ItemProperty -Path $serviceProviderPath -Name "NetbtPriority" -Value 7 -Type DWord
+            
+            Write-Host "`n=== DNS Priority Optimization Complete! ===" -ForegroundColor Cyan
+        }
+    }
+    
+    "Optimize_LanmanWorkstation" = @{
+        content = "Optimize Workstation Service"
+        description = "Optimizes Windows Workstation service settings to improve network file sharing performance and responsiveness"
+        category = "Latency"
+        action = {
+            Write-Host "`n=== Starting Workstation Service Optimization ===" -ForegroundColor Cyan
+            Write-Host "This will optimize Windows Workstation service for better network file sharing." -ForegroundColor Yellow
+            
+            $lanmanWorkstationPath = "HKLM:\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters"
+            if (!(Test-Path $lanmanWorkstationPath)) {
+                New-Item -Path $lanmanWorkstationPath -Force | Out-Null
+            }
+            
+            Write-Host "Setting MaxCmds to increase concurrent network operations" -ForegroundColor Green
+            Set-ItemProperty -Path $lanmanWorkstationPath -Name "MaxCmds" -Value 0x1e -Type DWord
+            
+            Write-Host "Setting MaxThreads to improve multi-threaded performance" -ForegroundColor Green
+            Set-ItemProperty -Path $lanmanWorkstationPath -Name "MaxThreads" -Value 0x1e -Type DWord
+            
+            Write-Host "Setting MaxCollectionCount to optimize memory usage" -ForegroundColor Green
+            Set-ItemProperty -Path $lanmanWorkstationPath -Name "MaxCollectionCount" -Value 0x20 -Type DWord
+            
+            Write-Host "`n=== Workstation Service Optimization Complete! ===" -ForegroundColor Cyan
+        }
+    }
+    
+    "Optimize_LanmanServer" = @{
+        content = "Optimize Server Service"
+        description = "Optimizes Windows Server service settings to improve file sharing, network performance, and connection handling"
+        category = "Latency"
+        action = {
+            Write-Host "`n=== Starting Server Service Optimization ===" -ForegroundColor Cyan
+            Write-Host "This will optimize Windows Server service for better network file sharing." -ForegroundColor Yellow
+            
+            $lanmanServerPath = "HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters"
+            if (!(Test-Path $lanmanServerPath)) {
+                New-Item -Path $lanmanServerPath -Force | Out-Null
+            }
+            
+            $serverSettings = @{
+                "IRPStackSize" = 0x32                # Increases the size of the internal routing table
+                "SizReqBuf" = 0x4410                 # Increases the size of the request buffer
+                "Size" = 3                           # Sets server size to optimize for network performance
+                "MaxWorkItems" = 0x2000              # Increases maximum simultaneous work items
+                "MaxMpxCt" = 0x800                   # Increases maximum multiplexed connections
+                "MaxCmds" = 0x800                    # Increases maximum pending commands
+                "DisableStrictNameChecking" = 1      # Disables strict name checking for better compatibility
+                "autodisconnect" = 0xffffffff        # Disables auto-disconnect for persistent connections
+                "EnableOplocks" = 0                  # Disables opportunistic locks for better real-time performance
+                "SharingViolationDelay" = 0          # Eliminates sharing violation delay
+                "SharingViolationRetries" = 0        # Eliminates sharing violation retries
+            }
+            
+            foreach ($setting in $serverSettings.Keys) {
+                Write-Host "Setting $setting to $($serverSettings[$setting])" -ForegroundColor Green
+                Set-ItemProperty -Path $lanmanServerPath -Name $setting -Value $serverSettings[$setting] -Type DWord
+            }
+            
+            Write-Host "`n=== Server Service Optimization Complete! ===" -ForegroundColor Cyan
+        }
+    }
+    
+    "Optimize_AFD_Settings" = @{
+        content = "Optimize Ancillary Function Driver Settings"
+        description = "Optimizes Windows AFD settings to improve socket performance, network throughput, and reduce latency for all applications"
+        category = "Latency"
+        action = {
+            Write-Host "`n=== Starting AFD Settings Optimization ===" -ForegroundColor Cyan
+            Write-Host "This will optimize Ancillary Function Driver settings for better network performance." -ForegroundColor Yellow
+            
+            $afdPath = "HKLM:\SYSTEM\CurrentControlSet\Services\AFD\Parameters"
+            if (!(Test-Path $afdPath)) {
+                New-Item -Path $afdPath -Force | Out-Null
+            }
+            
+            $afdSettings = @{
+                "DefaultReceiveWindow" = 0x4000          # Optimizes the default receive window size
+                "DefaultSendWindow" = 0x4000             # Optimizes the default send window size
+                "FastCopyReceiveThreshold" = 0x4000      # Improves receive performance for large data
+                "FastSendDatagramThreshold" = 0x4000     # Improves send performance for large data
+                "DynamicSendBufferDisable" = 0           # Enables dynamic send buffer for better adaptability
+                "IgnorePushBitOnReceives" = 1            # Improves throughput by ignoring TCP push bit
+                "NonBlockingSendSpecialBuffering" = 1    # Enhances non-blocking send operations
+                "DisableRawSecurity" = 1                 # Disables raw security checks for better performance
+            }
+            
+            foreach ($setting in $afdSettings.Keys) {
+                Write-Host "Setting $setting to $($afdSettings[$setting])" -ForegroundColor Green
+                Set-ItemProperty -Path $afdPath -Name $setting -Value $afdSettings[$setting] -Type DWord
+            }
+            
+            Write-Host "`n=== AFD Settings Optimization Complete! ===" -ForegroundColor Cyan
+        }
+    }
 
     "Service Optimization" = @{
     content = "Set Services to Manual"
     description = "Configures Windows services to optimal startup states for better system performance"
+    category = @("FPS", "Latency")
     action = {
         Write-Host "`n=== Starting Service Optimization ===" -ForegroundColor Cyan
         
@@ -1051,165 +1346,366 @@ $optimizations = @{
         Write-Host "`nService optimization completed successfully!" -ForegroundColor Green
     }
 }
-
-    "FPS Boost" = @{
-    content = "FPS Tweaks"
-    description = "Comprehensive system optimizations including memory management, GPU performance, and privacy settings"
-    action = {
-        Write-Host "`n=== Starting System Performance Optimization ===" -ForegroundColor Cyan
-        
-        $registryChanges = @{
-            # Power Settings
-            "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\2a737441-1930-4402-8d77-b2bebba308a3\d4e98f31-5ffe-4ce1-be31-1b38b384c009\DefaultPowerSchemeValues\381b4222-f694-41f0-9685-ff5bb260df2e" = @{
-                "ACSettingIndex" = 0
-                "DCSettingIndex" = 0
-            }
-            "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\2a737441-1930-4402-8d77-b2bebba308a3\d4e98f31-5ffe-4ce1-be31-1b38b384c009\DefaultPowerSchemeValues\8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c" = @{
-                "ACSettingIndex" = 0
-            }
-            "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\3b04d4fd-1cc7-4f23-ab1c-d1337819c4bb\DefaultPowerSchemeValues\381b4222-f694-41f0-9685-ff5bb260df2e" = @{
-                "ACSettingIndex" = 0
-                "DCSettingIndex" = 0
-            }
-            "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\3b04d4fd-1cc7-4f23-ab1c-d1337819c4bb\DefaultPowerSchemeValues\8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c" = @{
-                "ACSettingIndex" = 0
-            }
-            "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\4b92d758-5a24-4851-a470-815d78aee119\DefaultPowerSchemeValues\381b4222-f694-41f0-9685-ff5bb260df2e" = @{
-                "ACSettingIndex" = 64
-                "DCSettingIndex" = 64
-            }
-            "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\4b92d758-5a24-4851-a470-815d78aee119\DefaultPowerSchemeValues\8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c" = @{
-                "ACSettingIndex" = 64
-            }
-            "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\7b224883-b3cc-4d79-819f-8374152cbe7c\DefaultPowerSchemeValues\381b4222-f694-41f0-9685-ff5bb260df2e" = @{
-                "ACSettingIndex" = 64
-                "DCSettingIndex" = 64
-            }
-            "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\7b224883-b3cc-4d79-819f-8374152cbe7c\DefaultPowerSchemeValues\8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c" = @{
-                "ACSettingIndex" = 64
-            }
-            "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\943c8cb6-6f93-4227-ad87-e9a3feec08d1" = @{
-                "Attributes" = 2
-            }
-
-            # Memory Management
-            "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" = @{
-                "ClearPageFileAtShutdown" = 1
-                "FeatureSettings" = 0
-                "FeatureSettingsOverrideMask" = 3
-                "FeatureSettingsOverride" = 3
-                "LargeSystemCache" = 1
-                "NonPagedPoolQuota" = 0
-                "NonPagedPoolSize" = 0
-                "SessionViewSize" = 0xc0
-                "SystemPages" = 0
-                "SecondLevelDataCache" = 0xc00
-                "SessionPoolSize" = 0xc0
-                "DisablePagingExecutive" = 1
-                "PagedPoolSize" = 0xc0
-                "PagedPoolQuota" = 0
-                "PhysicalAddressExtension" = 1
-                "IoPageLockLimit" = 0x100000
-                "PoolUsageMaximum" = 0x60
-            }
-            # Background Apps
-            "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" = @{
-                "GlobalUserDisabled" = 1
-            }
-            # Search
-            "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" = @{
-                "BackgroundAppGlobalToggle" = 0
-            }
-            # Game DVR Settings
-            "HKLM:\SOFTWARE\Microsoft\PolicyManager\default\ApplicationManagement\AllowGameDVR" = @{
-                "value" = 0
-            }
-            "HKCU:\System\GameConfigStore" = @{
-                "GameDVR_Enabled" = 0
-                "GameDVR_FSEBehavior" = 2
-                "GameDVR_FSEBehaviorMode" = 2
-                "GameDVR_HonorUserFSEBehavior" = 0
-                "GameDVR_DXGIHonorFSEWindowsCompatible" = 1
-            }
-            "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR" = @{
-                "AllowGameDVR" = 0
-            }
-            "HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR" = @{
-                "AppCaptureEnabled" = 0
-            }
-
-            # System Profile
-            "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" = @{
-                "SystemResponsiveness" = 0
-                "NetworkThrottlingIndex" = 0xfffffff
-            }
-            # Games Task Settings
-            "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games" = @{
-                "Affinity" = 0
-                "Background Only" = "False"
-                "Clock Rate" = 0x2710
-                "GPU Priority" = 8
-                "Priority" = 6
-                "Scheduling Category" = "High"
-                "SFIO Priority" = "High"
-            }
-            # Desktop Settings
-            "HKCU:\Control Panel\Desktop" = @{
-                "AutoEndTasks" = 1
-                "HungAppTimeout" = 1000
-                "MenuShowDelay" = 8
-                "WaitToKillAppTimeout" = 2000
-                "LowLevelHooksTimeout" = 1000
-            }
-            # Explorer Policies
-            "HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer" = @{
-                "NoLowDiskSpaceChecks" = 1
-                "LinkResolveIgnoreLinkInfo" = 1
-                "NoResolveSearch" = 1
-                "NoResolveTrack" = 1
-                "NoInternetOpenWith" = 1
-                "NoInstrumentation" = 1
-            }
-            # System Control
-            "HKLM:\SYSTEM\CurrentControlSet\Control" = @{
-                "WaitToKillServiceTimeout" = 2000
-            }
-            # Privacy Settings
-            "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" = @{
-                "AllowTelemetry" = 0
-            }
-            "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection" = @{
-                "AllowTelemetry" = 0
-            }
-            "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppCompat" = @{
-                "AITEnable" = 0
-            }
-            "HKLM:\SOFTWARE\Policies\Microsoft\SQMClient\Windows" = @{
-                "CEIPEnable" = 0
-            }
-        }
-
-    foreach ($path in $registryChanges.Keys) {
-        Write-Host "`nConfiguring: $path" -ForegroundColor Yellow
-        
-        if (!(Test-Path $path)) {
-            Write-Host "Creating new registry path..." -ForegroundColor Gray
-            New-Item -Path $path -Force | Out-Null
-        }
-        
-        foreach ($name in $registryChanges[$path].Keys) {
-            Write-Host "Setting $name to $($registryChanges[$path][$name])" -ForegroundColor Green
-            Set-ItemProperty -Path $path -Name $name -Value $registryChanges[$path][$name] -Type DWord
-        }
     
-    
-    Write-Host "`n=== FPS Performance Optimization Complete! ===" -ForegroundColor Cyan
+    "Optimize_Power_Settings" = @{
+        content = "Optimize Power Settings for Performance"
+        description = "Configures power settings for maximum performance by disabling power throttling and sleep states that can reduce FPS in games"
+        category = "FPS"
+        action = {
+            Write-Host "`n=== Starting Power Settings Optimization ===" -ForegroundColor Cyan
+            Write-Host "This will optimize power settings for maximum performance." -ForegroundColor Yellow
+            
+            $powerSettings = @{
+                "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\2a737441-1930-4402-8d77-b2bebba308a3\d4e98f31-5ffe-4ce1-be31-1b38b384c009\DefaultPowerSchemeValues\381b4222-f694-41f0-9685-ff5bb260df2e" = @{
+                    "ACSettingIndex" = 0
+                    "DCSettingIndex" = 0
+                }
+                "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\2a737441-1930-4402-8d77-b2bebba308a3\d4e98f31-5ffe-4ce1-be31-1b38b384c009\DefaultPowerSchemeValues\8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c" = @{
+                    "ACSettingIndex" = 0
+                }
+                "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\3b04d4fd-1cc7-4f23-ab1c-d1337819c4bb\DefaultPowerSchemeValues\381b4222-f694-41f0-9685-ff5bb260df2e" = @{
+                    "ACSettingIndex" = 0
+                    "DCSettingIndex" = 0
+                }
+                "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\3b04d4fd-1cc7-4f23-ab1c-d1337819c4bb\DefaultPowerSchemeValues\8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c" = @{
+                    "ACSettingIndex" = 0
+                }
+                "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\4b92d758-5a24-4851-a470-815d78aee119\DefaultPowerSchemeValues\381b4222-f694-41f0-9685-ff5bb260df2e" = @{
+                    "ACSettingIndex" = 64
+                    "DCSettingIndex" = 64
+                }
+                "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\4b92d758-5a24-4851-a470-815d78aee119\DefaultPowerSchemeValues\8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c" = @{
+                    "ACSettingIndex" = 64
+                }
+                "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\7b224883-b3cc-4d79-819f-8374152cbe7c\DefaultPowerSchemeValues\381b4222-f694-41f0-9685-ff5bb260df2e" = @{
+                    "ACSettingIndex" = 64
+                    "DCSettingIndex" = 64
+                }
+                "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\7b224883-b3cc-4d79-819f-8374152cbe7c\DefaultPowerSchemeValues\8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c" = @{
+                    "ACSettingIndex" = 64
+                }
+                "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\943c8cb6-6f93-4227-ad87-e9a3feec08d1" = @{
+                    "Attributes" = 2
+                }
             }
+            
+            foreach ($path in $powerSettings.Keys) {
+                Write-Host "`nConfiguring: $path" -ForegroundColor Yellow
+                
+                if (!(Test-Path $path)) {
+                    Write-Host "Creating new registry path..." -ForegroundColor Gray
+                    New-Item -Path $path -Force | Out-Null
+                }
+                
+                foreach ($name in $powerSettings[$path].Keys) {
+                    Write-Host "Setting $name to $($powerSettings[$path][$name])" -ForegroundColor Green
+                    Set-ItemProperty -Path $path -Name $name -Value $powerSettings[$path][$name] -Type DWord
+                }
+            }
+            
+            Write-Host "`n=== Power Settings Optimization Complete! ===" -ForegroundColor Cyan
         }
     }
+    
+    "Optimize_Memory_Management" = @{
+        content = "Optimize Memory Management"
+        description = "Enhances memory management settings to improve game performance, reduce stuttering, and optimize RAM usage"
+        category = "FPS"
+        action = {
+            Write-Host "`n=== Starting Memory Management Optimization ===" -ForegroundColor Cyan
+            Write-Host "This will optimize memory management settings for better performance." -ForegroundColor Yellow
+            
+            $memorySettings = @{
+                "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" = @{
+                    "ClearPageFileAtShutdown" = 1
+                    "FeatureSettings" = 0
+                    "FeatureSettingsOverrideMask" = 3
+                    "FeatureSettingsOverride" = 3
+                    "LargeSystemCache" = 1
+                    "NonPagedPoolQuota" = 0
+                    "NonPagedPoolSize" = 0
+                    "SessionViewSize" = 0xc0
+                    "SystemPages" = 0
+                    "SecondLevelDataCache" = 0xc00
+                    "SessionPoolSize" = 0xc0
+                    "DisablePagingExecutive" = 1
+                    "PagedPoolSize" = 0xc0
+                    "PagedPoolQuota" = 0
+                    "PhysicalAddressExtension" = 1
+                    "IoPageLockLimit" = 0x100000
+                    "PoolUsageMaximum" = 0x60
+                }
+            }
+            
+            foreach ($path in $memorySettings.Keys) {
+                Write-Host "`nConfiguring: $path" -ForegroundColor Yellow
+                
+                if (!(Test-Path $path)) {
+                    Write-Host "Creating new registry path..." -ForegroundColor Gray
+                    New-Item -Path $path -Force | Out-Null
+                }
+                
+                foreach ($name in $memorySettings[$path].Keys) {
+                    Write-Host "Setting $name to $($memorySettings[$path][$name])" -ForegroundColor Green
+                    Set-ItemProperty -Path $path -Name $name -Value $memorySettings[$path][$name] -Type DWord
+                }
+            }
+            
+            Write-Host "`n=== Memory Management Optimization Complete! ===" -ForegroundColor Cyan
+        }
+    }
+    
+    "Disable_Background_Apps" = @{
+        content = "Disable Background Applications"
+        description = "Disables background applications and services that consume system resources and can reduce gaming performance"
+        category = "FPS"
+        action = {
+            Write-Host "`n=== Starting Background Applications Disabling Process ===" -ForegroundColor Cyan
+            Write-Host "This will disable background applications to free up system resources." -ForegroundColor Yellow
+            
+            $backgroundSettings = @{
+                "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" = @{
+                    "GlobalUserDisabled" = 1
+                }
+                "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" = @{
+                    "BackgroundAppGlobalToggle" = 0
+                }
+            }
+            
+            foreach ($path in $backgroundSettings.Keys) {
+                Write-Host "`nConfiguring: $path" -ForegroundColor Yellow
+                
+                if (!(Test-Path $path)) {
+                    Write-Host "Creating new registry path..." -ForegroundColor Gray
+                    New-Item -Path $path -Force | Out-Null
+                }
+                
+                foreach ($name in $backgroundSettings[$path].Keys) {
+                    Write-Host "Setting $name to $($backgroundSettings[$path][$name])" -ForegroundColor Green
+                    Set-ItemProperty -Path $path -Name $name -Value $backgroundSettings[$path][$name] -Type DWord
+                }
+            }
+            
+            Write-Host "`n=== Background Applications Disabling Complete! ===" -ForegroundColor Cyan
+        }
+    }
+    
+    "Disable_Game_DVR" = @{
+        content = "Disable Game DVR and Game Bar"
+        description = "Disables Windows Game DVR and Game Bar features that can significantly reduce gaming performance and cause FPS drops"
+        category = "FPS"
+        action = {
+            Write-Host "`n=== Starting Game DVR Disabling Process ===" -ForegroundColor Cyan
+            Write-Host "This will disable Game DVR and Game Bar to improve gaming performance." -ForegroundColor Yellow
+            
+            $gameDvrSettings = @{
+                "HKLM:\SOFTWARE\Microsoft\PolicyManager\default\ApplicationManagement\AllowGameDVR" = @{
+                    "value" = 0
+                }
+                "HKCU:\System\GameConfigStore" = @{
+                    "GameDVR_Enabled" = 0
+                    "GameDVR_FSEBehavior" = 2
+                    "GameDVR_FSEBehaviorMode" = 2
+                    "GameDVR_HonorUserFSEBehavior" = 0
+                    "GameDVR_DXGIHonorFSEWindowsCompatible" = 1
+                }
+                "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR" = @{
+                    "AllowGameDVR" = 0
+                }
+                "HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR" = @{
+                    "AppCaptureEnabled" = 0
+                }
+            }
+            
+            foreach ($path in $gameDvrSettings.Keys) {
+                Write-Host "`nConfiguring: $path" -ForegroundColor Yellow
+                
+                if (!(Test-Path $path)) {
+                    Write-Host "Creating new registry path..." -ForegroundColor Gray
+                    New-Item -Path $path -Force | Out-Null
+                }
+                
+                foreach ($name in $gameDvrSettings[$path].Keys) {
+                    Write-Host "Setting $name to $($gameDvrSettings[$path][$name])" -ForegroundColor Green
+                    Set-ItemProperty -Path $path -Name $name -Value $gameDvrSettings[$path][$name] -Type DWord
+                }
+            }
+            
+            Write-Host "`n=== Game DVR Disabling Complete! ===" -ForegroundColor Cyan
+        }
+    }
+    
+    "Optimize_System_Responsiveness" = @{
+        content = "Optimize System Responsiveness"
+        description = "Optimizes system responsiveness settings to prioritize foreground applications and reduce input lag in games"
+        category = "FPS"
+        action = {
+            Write-Host "`n=== Starting System Responsiveness Optimization ===" -ForegroundColor Cyan
+            Write-Host "This will optimize system responsiveness settings." -ForegroundColor Yellow
+            
+            $systemProfileSettings = @{
+                "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" = @{
+                    "SystemResponsiveness" = 0
+                    "NetworkThrottlingIndex" = 0xfffffff
+                }
+                "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games" = @{
+                    "Affinity" = 0
+                    "Background Only" = "False"
+                    "Clock Rate" = 0x2710
+                    "GPU Priority" = 8
+                    "Priority" = 6
+                    "Scheduling Category" = "High"
+                    "SFIO Priority" = "High"
+                }
+            }
+            
+            foreach ($path in $systemProfileSettings.Keys) {
+                Write-Host "`nConfiguring: $path" -ForegroundColor Yellow
+                
+                if (!(Test-Path $path)) {
+                    Write-Host "Creating new registry path..." -ForegroundColor Gray
+                    New-Item -Path $path -Force | Out-Null
+                }
+                
+                foreach ($name in $systemProfileSettings[$path].Keys) {
+                    $value = $systemProfileSettings[$path][$name]
+                    
+                    # Handle string values
+                    if ($value -is [string]) {
+                        Write-Host "Setting $name to $value" -ForegroundColor Green
+                        Set-ItemProperty -Path $path -Name $name -Value $value -Type String
+                    } else {
+                        Write-Host "Setting $name to $value" -ForegroundColor Green
+                        Set-ItemProperty -Path $path -Name $name -Value $value -Type DWord
+                    }
+                }
+            }
+            
+            Write-Host "`n=== System Responsiveness Optimization Complete! ===" -ForegroundColor Cyan
+        }
+    }
+    
+    "Optimize_Desktop_Settings" = @{
+        content = "Optimize Desktop and UI Settings"
+        description = "Optimizes desktop and user interface settings to improve responsiveness and reduce system overhead"
+        category = "FPS"
+        action = {
+            Write-Host "`n=== Starting Desktop Settings Optimization ===" -ForegroundColor Cyan
+            Write-Host "This will optimize desktop and UI settings." -ForegroundColor Yellow
+            
+            $desktopSettings = @{
+                "HKCU:\Control Panel\Desktop" = @{
+                    "AutoEndTasks" = 1
+                    "HungAppTimeout" = 1000
+                    "MenuShowDelay" = 8
+                    "WaitToKillAppTimeout" = 2000
+                    "LowLevelHooksTimeout" = 1000
+                }
+                "HKLM:\SYSTEM\CurrentControlSet\Control" = @{
+                    "WaitToKillServiceTimeout" = 2000
+                }
+            }
+            
+            foreach ($path in $desktopSettings.Keys) {
+                Write-Host "`nConfiguring: $path" -ForegroundColor Yellow
+                
+                if (!(Test-Path $path)) {
+                    Write-Host "Creating new registry path..." -ForegroundColor Gray
+                    New-Item -Path $path -Force | Out-Null
+                }
+                
+                foreach ($name in $desktopSettings[$path].Keys) {
+                    Write-Host "Setting $name to $($desktopSettings[$path][$name])" -ForegroundColor Green
+                    Set-ItemProperty -Path $path -Name $name -Value $desktopSettings[$path][$name] -Type DWord
+                }
+            }
+            
+            Write-Host "`n=== Desktop Settings Optimization Complete! ===" -ForegroundColor Cyan
+        }
+    }
+    
+    "Optimize_Explorer_Settings" = @{
+        content = "Optimize Explorer and File System Settings"
+        description = "Optimizes Windows Explorer and file system settings to reduce overhead and improve system responsiveness"
+        category = "FPS"
+        action = {
+            Write-Host "`n=== Starting Explorer Settings Optimization ===" -ForegroundColor Cyan
+            Write-Host "This will optimize Windows Explorer and file system settings." -ForegroundColor Yellow
+            
+            $explorerSettings = @{
+                "HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer" = @{
+                    "NoLowDiskSpaceChecks" = 1
+                    "LinkResolveIgnoreLinkInfo" = 1
+                    "NoResolveSearch" = 1
+                    "NoResolveTrack" = 1
+                    "NoInternetOpenWith" = 1
+                    "NoInstrumentation" = 1
+                }
+            }
+            
+            foreach ($path in $explorerSettings.Keys) {
+                Write-Host "`nConfiguring: $path" -ForegroundColor Yellow
+                
+                if (!(Test-Path $path)) {
+                    Write-Host "Creating new registry path..." -ForegroundColor Gray
+                    New-Item -Path $path -Force | Out-Null
+                }
+                
+                foreach ($name in $explorerSettings[$path].Keys) {
+                    Write-Host "Setting $name to $($explorerSettings[$path][$name])" -ForegroundColor Green
+                    Set-ItemProperty -Path $path -Name $name -Value $explorerSettings[$path][$name] -Type DWord
+                }
+            }
+            
+            Write-Host "`n=== Explorer Settings Optimization Complete! ===" -ForegroundColor Cyan
+        }
+    }
+    
+    "Disable_Telemetry_Privacy" = @{
+        content = "Disable Telemetry and Enhance Privacy"
+        description = "Disables Windows telemetry, data collection, and background processes that can impact system performance and privacy"
+        category = "FPS"
+        action = {
+            Write-Host "`n=== Starting Telemetry and Privacy Settings Optimization ===" -ForegroundColor Cyan
+            Write-Host "This will disable telemetry and enhance privacy settings." -ForegroundColor Yellow
+            
+            $privacySettings = @{
+                "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" = @{
+                    "AllowTelemetry" = 0
+                }
+                "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection" = @{
+                    "AllowTelemetry" = 0
+                }
+                "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppCompat" = @{
+                    "AITEnable" = 0
+                }
+                "HKLM:\SOFTWARE\Policies\Microsoft\SQMClient\Windows" = @{
+                    "CEIPEnable" = 0
+                }
+            }
+            
+            foreach ($path in $privacySettings.Keys) {
+                Write-Host "`nConfiguring: $path" -ForegroundColor Yellow
+                
+                if (!(Test-Path $path)) {
+                    Write-Host "Creating new registry path..." -ForegroundColor Gray
+                    New-Item -Path $path -Force | Out-Null
+                }
+                
+                foreach ($name in $privacySettings[$path].Keys) {
+                    Write-Host "Setting $name to $($privacySettings[$path][$name])" -ForegroundColor Green
+                    Set-ItemProperty -Path $path -Name $name -Value $privacySettings[$path][$name] -Type DWord
+                }
+            }
+            
+            Write-Host "`n=== Telemetry and Privacy Settings Optimization Complete! ===" -ForegroundColor Cyan
+        }
+    }
+
 "Mouse Optimization" = @{
     content = "Mouse Optimization"
     description = "Ultimate Mouse Optimization - Zero Processing, Pure Raw Input!"
+    category = "Latency"
     action = {
         Write-Host "`nOptimizing Mouse Settings..." -ForegroundColor Cyan
 
@@ -1309,6 +1805,7 @@ $optimizations = @{
 "Keyboard Optimization" = @{
     content = "Keyboard Optimization"
     description = "Ultimate real-time keyboard optimization with absolute zero latency"
+    category = "Latency"
     action = {
         Write-Host "`nApplying Maximum Real-Time Keyboard Optimizations..." -ForegroundColor Cyan
 
@@ -1553,6 +2050,15 @@ $optimizations = @{
     }
  }
 
+# Show Terms of Service first
+$userAgreedToTOS = Show-TermsOfService
+
+# Only continue if user agreed to terms
+if (-not $userAgreedToTOS) {
+    Write-Host "User did not agree to Terms of Service. Exiting application."
+    exit
+}
+
 # XAML Code
 [xml]$xaml = @'
 <Window
@@ -1680,7 +2186,7 @@ $optimizations = @{
 </Style>
 
 <Style x:Key="ActionButtonStyle" TargetType="Button">
-    <Setter Property="Background" Value="#007ACC"/>
+    <Setter Property="Background" Value="#CC0000"/>
     <Setter Property="Foreground" Value="White"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="BorderThickness" Value="0"/>
@@ -1692,15 +2198,15 @@ $optimizations = @{
                         BorderBrush="{TemplateBinding BorderBrush}"
                         BorderThickness="{TemplateBinding BorderThickness}"
                         CornerRadius="6">
-                    <ContentPresenter HorizontalAlignment="Center" 
-                                    VerticalAlignment="Center"/>
+                    <ContentPresenter HorizontalAlignment="Center"
+                                     VerticalAlignment="Center"/>
                 </Border>
                 <ControlTemplate.Triggers>
                     <Trigger Property="IsMouseOver" Value="True">
-                        <Setter Property="Background" Value="#0098FF"/>
+                        <Setter Property="Background" Value="#FF0000"/>
                     </Trigger>
                     <Trigger Property="IsPressed" Value="True">
-                        <Setter Property="Background" Value="#005A99"/>
+                        <Setter Property="Background" Value="#990000"/>
                     </Trigger>
                 </ControlTemplate.Triggers>
             </ControlTemplate>
@@ -1984,35 +2490,41 @@ $optimizations = @{
                     <!-- Optimize Content -->
                     <Grid x:Name="OptimizeContent" Visibility="Collapsed" Margin="0,50,0,-10">
                         <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
-
-                        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" Margin="10">
+                        
+                        <!-- Category Filter Buttons -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="20,25,20,5" HorizontalAlignment="Left" VerticalAlignment="Center">
+                        <Button x:Name="AllTweaksButton" Content="All" Style="{StaticResource ActionButtonStyle}" Width="70" Height="28" Margin="0,0,8,0"/>
+                        <Button x:Name="FPSTweaksButton" Content="FPS" Style="{StaticResource ActionButtonStyle}" Width="70" Height="28" Margin="0,0,8,0"/>
+                        <Button x:Name="LatencyTweaksButton" Content="Latency" Style="{StaticResource ActionButtonStyle}" Width="70" Height="28" Margin="0,0,8,0"/>
+                    </StackPanel>
+                        
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="10">
                             <StackPanel x:Name="OptimizationsPanel"/>
                         </ScrollViewer>
-
-                        <Grid Grid.Row="1" Margin="20,0,20,20">
+                        
+                        <Grid Grid.Row="2" Margin="20,0,20,20">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-
-                            <Button x:Name="RunTweaksButton" 
+                            <Button x:Name="RunTweaksButton"
                                     Grid.Column="0"
-                                    Content="Run Tweaks" 
+                                    Content="Run Tweaks"
                                     Style="{StaticResource ActionButtonStyle}"
-                                    Width="120" 
+                                    Width="120"
                                     Height="35"/>
-
-                            <ComboBox x:Name="DNSComboBox" 
-                                      Grid.Column="1"
-                                      Width="120" 
-                                      Height="35"
-                                      HorizontalAlignment="Left"
-                                      Margin="20,0,0,0"
-                                      Style="{StaticResource ModernComboBoxStyle}">
+                            <ComboBox x:Name="DNSComboBox"
+                                    Grid.Column="1"
+                                    Width="120"
+                                    Height="35"
+                                    HorizontalAlignment="Left"
+                                    Margin="20,0,0,0"
+                                    Style="{StaticResource ModernComboBoxStyle}">
                                 <ComboBoxItem IsEnabled="False" IsSelected="True">Select DNS</ComboBoxItem>
                                 <ComboBoxItem>Cloudflare DNS</ComboBoxItem>
                                 <ComboBoxItem>Google DNS</ComboBoxItem>
@@ -2148,6 +2660,11 @@ $debloatContent = $window.FindName("DebloatContent")
 $debloatPanel = $window.FindName("DebloatPanel")
 $debloatButton = $window.FindName("DebloatButton")
 $SearchBox = $window.FindName("SearchBox")
+$allTweaksButton = $window.FindName("AllTweaksButton")
+$fpsTweaksButton = $window.FindName("FPSTweaksButton")
+$latencyTweaksButton = $window.FindName("LatencyTweaksButton")
+$tosOverlay = $window.FindName("TOSOverlay")
+$tosAgreeButton = $window.FindName("TOSAgreeButton")
 
 # Create and configure SearchBox
 $SearchBox.Height = 30
@@ -2560,12 +3077,50 @@ $revertButton.Add_Click({
     }
 })
 
+# Function to filter optimizations by category
+function FilterOptimizations {
+    param([string]$category)
+    
+    # Get all optimization items
+    if ($optimizationsPanel.Children.Count -gt 0) {
+        $optimizationItems = $optimizationsPanel.Children[0].Children
+        
+        foreach ($item in $optimizationItems) {
+            $toggleSwitch = $item.Child.Children[0].Children[1]
+            $tweakCategory = $toggleSwitch.Tag.category
+            
+            if ($category -eq "All" -or 
+                [string]::IsNullOrEmpty($tweakCategory) -or 
+                ($tweakCategory -is [array] -and $tweakCategory -contains $category) -or
+                $tweakCategory -eq $category) {
+                $item.Visibility = "Visible"
+            } else {
+                $item.Visibility = "Collapsed"
+            }
+        }
+    }
+}
+
+# category buttons
+$allTweaksButton.Add_Click({
+    FilterOptimizations "All"
+})
+
+$fpsTweaksButton.Add_Click({
+    FilterOptimizations "FPS"
+})
+
+$latencyTweaksButton.Add_Click({
+    FilterOptimizations "Latency"
+})
+
 $optimizeTab.Add_Click({
     $appsContent.Visibility = "Collapsed"
     $optimizeContent.Visibility = "Visible"
     $infoContent.Visibility = "Collapsed"
     $cleanContent.Visibility = "Collapsed"
     $debloatContent.Visibility = "Collapsed"
+    FilterOptimizations "All"
 })
 
 $cleanTab.Add_Click({
@@ -2681,6 +3236,10 @@ $infoTab.Add_Click({
     $infoContent.Visibility = "Visible"
     $debloatContent.Visibility = "Collapsed"
     $cleanContent.Visibility = "Collapsed"
+})
+
+$tosAgreeButton.Add_Click({
+    $tosOverlay.Visibility = "Collapsed"
 })
 
 function Remove-AppTraces {
