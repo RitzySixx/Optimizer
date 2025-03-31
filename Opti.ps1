@@ -100,7 +100,7 @@ function Show-TermsOfService {
                        FontSize="26" FontWeight="Bold" Foreground="#CC0000" 
                        HorizontalAlignment="Center" Margin="0,5,0,15"/>
             
-            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden">
                 <StackPanel>
                     <TextBlock TextWrapping="Wrap" Margin="0,0,0,15" Foreground="White" FontSize="15" FontWeight="SemiBold">
                         Please read and acknowledge the following terms:
@@ -2370,7 +2370,7 @@ if (-not $userAgreedToTOS) {
                                 <ScrollViewer MaxHeight="200"
                                             SnapsToDevicePixels="True"
                                             HorizontalScrollBarVisibility="Disabled"
-                                            VerticalScrollBarVisibility="Auto">
+                                            VerticalScrollBarVisibility="Hidden">
                                     <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/>
                                 </ScrollViewer>
                             </Border>
@@ -2549,7 +2549,7 @@ if (-not $userAgreedToTOS) {
 
                             <!-- Apps Content -->
                 <Grid x:Name="AppsContent" Visibility="Visible" Margin="0,50,0,-10">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="10">
+                    <ScrollViewer VerticalScrollBarVisibility="Hidden" Margin="10">
                         <WrapPanel x:Name="CategoriesPanel" Orientation="Horizontal"/>
                     </ScrollViewer>
                     <Button x:Name="InstallButton" 
@@ -2574,7 +2574,7 @@ if (-not $userAgreedToTOS) {
 
                     <!-- Clean Content -->
                     <Grid x:Name="CleanContent" Visibility="Collapsed" Margin="0,50,0,-10">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="10">
+                        <ScrollViewer VerticalScrollBarVisibility="Hidden" Margin="10">
                             <StackPanel x:Name="CleanPanel"/>
                         </ScrollViewer>
                         <Button x:Name="CleanButton" 
@@ -2607,7 +2607,7 @@ if (-not $userAgreedToTOS) {
                                 BorderThickness="1" 
                                 CornerRadius="8" 
                                 Margin="20,0,20,20">
-                            <ScrollViewer x:Name="ConsoleScroller" VerticalScrollBarVisibility="Auto">
+                            <ScrollViewer x:Name="ConsoleScroller" VerticalScrollBarVisibility="Hidden">
                                 <TextBox x:Name="ConsoleOutput" 
                                         Background="Transparent" 
                                         Foreground="#CCCCCC" 
@@ -2647,7 +2647,7 @@ if (-not $userAgreedToTOS) {
                         <Button x:Name="LatencyTweaksButton" Content="Latency" Style="{StaticResource ActionButtonStyle}" Width="70" Height="28" Margin="0,0,8,0"/>
                     </StackPanel>
                         
-                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="10">
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden" Margin="10">
                             <StackPanel x:Name="OptimizationsPanel"/>
                         </ScrollViewer>
                         
@@ -2685,7 +2685,7 @@ if (-not $userAgreedToTOS) {
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" Margin="10">
+                        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Hidden" Margin="10">
                             <StackPanel x:Name="DebloatPanel"/>
                         </ScrollViewer>
 
@@ -2706,7 +2706,7 @@ if (-not $userAgreedToTOS) {
 
                     <!-- Info Content -->
                     <Grid x:Name="InfoContent" Visibility="Collapsed" Margin="0,50,0,0">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="20">
+                        <ScrollViewer VerticalScrollBarVisibility="Hidden" Margin="20">
                             <StackPanel Margin="10">
                                 <!-- Tool Information -->
                                 <Border Background="{DynamicResource ButtonBackground}" CornerRadius="15" Padding="25" Margin="0,0,0,20">
