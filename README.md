@@ -1,7 +1,3 @@
-![Screenshot 2025-03-30 230121](https://github.com/user-attachments/assets/c011ffa7-7b14-44f3-a343-69a1c3e74961)
-![Screenshot 2025-03-30 230143](https://github.com/user-attachments/assets/74b39188-1ce0-4486-8739-686f8e5679bd)
-
-
 Windows Optimizer Tool Features
 
 Cleanup Features
@@ -54,3 +50,7 @@ Educational Value
     Transparent Operations: Shows exactly what changes are being made
     Learning Resource: Helps users understand Windows optimization techniques
     Documentation: Comprehensive documentation of all features and their impacts
+
+![Screenshot 2025-03-30 230121](https://github.com/user-attachments/assets/c011ffa7-7b14-44f3-a343-69a1c3e74961)
+
+![Screenshot 2025-03-30 230143](https://github.com/user-attachments/assets/74b39188-1ce0-4486-8739-686f8e5679bd)
