@@ -173,14 +173,21 @@ function Show-TermsOfService {
     return $script:userAgreed
 }
 
-# Function to create restore point if not already created
+# Function to create restore point if not created in the last 24 hours
 function Ensure-SingleRestorePoint {
-    if (-not $script:restorePointCreated) {
+    # Check if a restore point was created in the last 24 hours
+    $recentPoint = Get-ComputerRestorePoint | Where-Object { 
+        $_.CreationTime -gt (Get-Date).AddHours(-24) -and 
+        $_.Description -eq "Ritzy Optimizer Changes" 
+    } | Select-Object -First 1
+    
+    if (-not $recentPoint) {
         Write-Host "Creating System Restore Point..." -ForegroundColor Cyan
         Enable-ComputerRestore -Drive "C:\"
-        Checkpoint-Computer -Description "Ritzy Optimizer Changes" -RestorePointType "MODIFY_SETTINGS"
-        $script:restorePointCreated = $true
+        Checkpoint-Computer -Description "Ritzy Optimizer Changes" -RestorePointType "MODIFY_SETTINGS" -ErrorAction SilentlyContinue
         Write-Host "System Restore Point created successfully!" -ForegroundColor Green
+    } else {
+        Write-Host "Using existing restore point from the last 24 hours." -ForegroundColor Cyan
     }
 }
 
@@ -2372,6 +2379,11 @@ if (-not $userAgreedToTOS) {
                                 Content="Info"
                                 Tag="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm0-2a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM11 7h2v2h-2V7zm0 4h2v6h-2v-6z"/>
 
+                        <Button x:Name="ConsoleTab"
+                                Style="{StaticResource NavButtonStyle}"
+                                Content="Console"
+                                Tag="M2 4v16h20V4H2zm18 14H4V6h16v12zM6 8v2h12V8H6zm0 4v2h12v-2H6zm0 4v2h5v-2H6z"/>
+
                         <Button x:Name="RevertButton"
                                 Content="Revert Changes"
                                 Background="#FF4444"
@@ -2485,6 +2497,51 @@ if (-not $userAgreedToTOS) {
                                 VerticalAlignment="Bottom"
                                 HorizontalAlignment="Left" 
                                 Margin="20,0,0,20"/>
+                    </Grid>
+
+                    <!-- Console Tab Content -->
+                    <Grid x:Name="ConsoleView" Visibility="Collapsed">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        
+                        <TextBlock Text="Console Output" 
+                                FontSize="24" 
+                                FontWeight="SemiBold" 
+                                Margin="20,20,0,10" 
+                                Foreground="White"/>
+                        
+                        <Border Grid.Row="1" 
+                                Background="#1E1E1E" 
+                                BorderBrush="#333333" 
+                                BorderThickness="1" 
+                                CornerRadius="8" 
+                                Margin="20,0,20,20">
+                            <ScrollViewer x:Name="ConsoleScroller" VerticalScrollBarVisibility="Auto">
+                                <TextBox x:Name="ConsoleOutput" 
+                                        Background="Transparent" 
+                                        Foreground="#CCCCCC" 
+                                        FontFamily="Consolas" 
+                                        FontSize="14" 
+                                        IsReadOnly="True" 
+                                        BorderThickness="0" 
+                                        Padding="10" 
+                                        TextWrapping="Wrap" 
+                                        VerticalAlignment="Stretch" 
+                                        HorizontalAlignment="Stretch"/>
+                            </ScrollViewer>
+                        </Border>
+                        
+                        <Button Grid.Row="2" 
+                                Content="Clear Console" 
+                                Background="#333333" 
+                                Foreground="White" 
+                                Padding="15,8" 
+                                Margin="0,0,20,20" 
+                                HorizontalAlignment="Right" 
+                                x:Name="ClearConsoleButton"/>
                     </Grid>
 
                     <!-- Optimize Content -->
@@ -2633,6 +2690,67 @@ $null = [Windows.Data.BindingOperations]::EnableCollectionSynchronization($null,
 $reader = New-Object System.Xml.XmlNodeReader $xaml
 $window = [Windows.Markup.XamlReader]::Load($reader)
 
+# Add code to hide PowerShell console window
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public class Console {
+    public class Window {
+        [DllImport("kernel32.dll")]
+        public static extern IntPtr GetConsoleWindow();
+        [DllImport("user32.dll")]
+        public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+    }
+}
+"@
+
+# Hide the PowerShell console window
+function Hide-PowerShellConsole {
+    $consolePtr = [Console.Window]::GetConsoleWindow()
+    [Console.Window]::ShowWindow($consolePtr, 0) # 0 = SW_HIDE
+}
+
+# Hide the PowerShell console window
+Hide-PowerShellConsole
+
+# Create a custom output stream writer to capture console output
+$outputStream = New-Object System.IO.StringWriter
+$errorStream = New-Object System.IO.StringWriter
+
+# Function to redirect output to the console textbox
+function Write-ToConsole {
+    param([string]$Text, [string]$Color = "#CCCCCC")
+    
+    $window.Dispatcher.Invoke([Action]{
+        $ConsoleOutput.AppendText("$Text`r`n")
+        $ConsoleScroller.ScrollToEnd()
+    })
+}
+
+# Fix the Invoke-CommandWithOutput function to handle null script blocks
+function Invoke-CommandWithOutput {
+    param(
+        [Parameter(Mandatory=$false)]
+        [scriptblock]$ScriptBlock
+    )
+    
+    # Always navigate to Console tab first
+    Show-Tab -TabName "ConsoleView"
+    
+    # If no script block is provided, just return after showing the console tab
+    if ($null -eq $ScriptBlock) {
+        return
+    }
+    
+    try {
+        # Execute the script block
+        & $ScriptBlock
+    }
+    catch {
+        Write-Host "Error: $_" -ForegroundColor Red
+    }
+}
+
 # Get Controls
 $closeButton = $window.FindName("CloseButton")
 $minimizeButton = $window.FindName("MinimizeButton")
@@ -2665,6 +2783,11 @@ $fpsTweaksButton = $window.FindName("FPSTweaksButton")
 $latencyTweaksButton = $window.FindName("LatencyTweaksButton")
 $tosOverlay = $window.FindName("TOSOverlay")
 $tosAgreeButton = $window.FindName("TOSAgreeButton")
+$consoleTab = $window.FindName("ConsoleTab")
+$consoleView = $window.FindName("ConsoleView")
+$consoleOutput = $window.FindName("ConsoleOutput")
+$consoleScroller = $window.FindName("ConsoleScroller")
+$clearConsoleButton = $window.FindName("ClearConsoleButton")
 
 # Create and configure SearchBox
 $SearchBox.Height = 30
@@ -2695,6 +2818,7 @@ $SearchBox.Add_LostFocus({
         $this.Foreground = "#808080"
     }
 })
+
 # Initialize with placeholder
 $SearchBox.Text = $placeholderText
 $SearchBox.Foreground = "#808080"
@@ -2735,7 +2859,6 @@ $SearchBox.Add_TextChanged({
 
 # Theme State
 $script:isDarkMode = $true
-
 $appsBorder = New-Object Windows.Controls.Border
 $appsBorder.Background = $window.Resources["BackgroundBrush"] 
 $appsBorder.BorderBrush = $window.Resources["AccentBrush"]
@@ -2759,9 +2882,7 @@ foreach ($app in $apps.GetEnumerator()) {
     $appBorder.Padding = "15"
     $appBorder.Width = "280"
     $appBorder.MinHeight = "180"
-
     $appStack = New-Object Windows.Controls.StackPanel
-
     # Create header grid for toggle positioning
     $headerGrid = New-Object Windows.Controls.Grid
     
@@ -2771,14 +2892,14 @@ foreach ($app in $apps.GetEnumerator()) {
     $col2.Width = "Auto"
     $headerGrid.ColumnDefinitions.Add($col1)
     $headerGrid.ColumnDefinitions.Add($col2)
-
+    
     # Create toggle switch
     $toggleSwitch = New-Object Windows.Controls.Primitives.ToggleButton
     $toggleSwitch.Style = $window.Resources["ToggleSwitchStyle"]
     $toggleSwitch.Margin = "0,0,0,10"
     $toggleSwitch.Tag = $app.Value
     [Windows.Controls.Grid]::SetColumn($toggleSwitch, 1)
-
+    
     # Create content
     $appName = New-Object Windows.Controls.TextBlock
     $appName.Text = $app.Value.content
@@ -2793,7 +2914,7 @@ foreach ($app in $apps.GetEnumerator()) {
     $appDescription.Opacity = 0.7
     $appDescription.Margin = "0,5,0,0"
     $appDescription.Foreground = $window.Resources["TextColor"]
-
+    
     # Add elements to layout
     $headerGrid.Children.Add($appName)
     $headerGrid.Children.Add($toggleSwitch)
@@ -2804,7 +2925,6 @@ foreach ($app in $apps.GetEnumerator()) {
     $appBorder.Child = $appStack
     $appsWrapPanel.Children.Add($appBorder)
 }
-
 $categoriesPanel.Children.Add($appsWrapPanel)
 
 # Create main border
@@ -2831,25 +2951,23 @@ foreach ($item in $debloatItems.GetEnumerator()) {
     $itemBorder.Padding = "15"
     $itemBorder.Width = "280"
     $itemBorder.MinHeight = "180"
-
     $itemStack = New-Object Windows.Controls.StackPanel
-
+    
     # Create header grid
     $headerGrid = New-Object Windows.Controls.Grid
-
     $col1 = New-Object Windows.Controls.ColumnDefinition
     $col2 = New-Object Windows.Controls.ColumnDefinition
     $col2.Width = "Auto"
     $headerGrid.ColumnDefinitions.Add($col1)
     $headerGrid.ColumnDefinitions.Add($col2)
-
+    
     # Create toggle switch
     $toggleSwitch = New-Object Windows.Controls.Primitives.ToggleButton
     $toggleSwitch.Style = $window.Resources["ToggleSwitchStyle"]
     $toggleSwitch.Margin = "0,0,0,10"
     $toggleSwitch.Tag = $item.Value
     [Windows.Controls.Grid]::SetColumn($toggleSwitch, 1)
-
+    
     # Create content
     $itemName = New-Object Windows.Controls.TextBlock
     $itemName.Text = $item.Value.content
@@ -2864,7 +2982,7 @@ foreach ($item in $debloatItems.GetEnumerator()) {
     $itemDescription.Opacity = 0.7
     $itemDescription.Margin = "0,5,0,0"
     $itemDescription.Foreground = $window.Resources["TextColor"]
-
+    
     # Add elements to layout
     $headerGrid.Children.Add($itemName)
     $headerGrid.Children.Add($toggleSwitch)
@@ -2875,9 +2993,7 @@ foreach ($item in $debloatItems.GetEnumerator()) {
     $itemBorder.Child = $itemStack
     $debloatWrapPanel.Children.Add($itemBorder)
 }
-
 $debloatPanel.Children.Add($debloatWrapPanel)
-
 
 # Create Optimization container
 $optimizationsBorder = New-Object Windows.Controls.Border
@@ -2903,9 +3019,8 @@ foreach ($tweak in $optimizations.GetEnumerator()) {
     $tweakBorder.Padding = "15"
     $tweakBorder.Width = "280"
     $tweakBorder.MinHeight = "180"
-
     $tweakStack = New-Object Windows.Controls.StackPanel
-
+    
     # Create header grid for toggle positioning
     $headerGrid = New-Object Windows.Controls.Grid
     
@@ -2915,14 +3030,14 @@ foreach ($tweak in $optimizations.GetEnumerator()) {
     $col2.Width = "Auto"
     $headerGrid.ColumnDefinitions.Add($col1)
     $headerGrid.ColumnDefinitions.Add($col2)
-
+    
     # Create toggle switch
     $toggleSwitch = New-Object Windows.Controls.Primitives.ToggleButton
     $toggleSwitch.Style = $window.Resources["ToggleSwitchStyle"]
     $toggleSwitch.Margin = "0,0,0,10"
     $toggleSwitch.Tag = $tweak.Value
     [Windows.Controls.Grid]::SetColumn($toggleSwitch, 1)
-
+    
     # Create content
     $tweakName = New-Object Windows.Controls.TextBlock
     $tweakName.Text = $tweak.Value.content
@@ -2937,7 +3052,7 @@ foreach ($tweak in $optimizations.GetEnumerator()) {
     $tweakDescription.Opacity = 0.7
     $tweakDescription.Margin = "0,5,0,0"
     $tweakDescription.Foreground = $window.Resources["TextColor"]
-
+    
     # Add elements to layout
     $headerGrid.Children.Add($tweakName)
     $headerGrid.Children.Add($toggleSwitch)
@@ -2948,7 +3063,6 @@ foreach ($tweak in $optimizations.GetEnumerator()) {
     $tweakBorder.Child = $tweakStack
     $optimizationsWrapPanel.Children.Add($tweakBorder)
 }
-
 $optimizationsPanel.Children.Add($optimizationsWrapPanel)
 
 # Create main container
@@ -2975,9 +3089,8 @@ foreach ($cleanup in $cleanupTasks.GetEnumerator()) {
     $cleanupBorder.Padding = "15"
     $cleanupBorder.Width = "280"
     $cleanupBorder.MinHeight = "180"
-
     $cleanupStack = New-Object Windows.Controls.StackPanel
-
+    
     # Create header grid for toggle positioning
     $headerGrid = New-Object Windows.Controls.Grid
     
@@ -2987,14 +3100,14 @@ foreach ($cleanup in $cleanupTasks.GetEnumerator()) {
     $col2.Width = "Auto"
     $headerGrid.ColumnDefinitions.Add($col1)
     $headerGrid.ColumnDefinitions.Add($col2)
-
+    
     # Create toggle switch
     $toggleSwitch = New-Object Windows.Controls.Primitives.ToggleButton
     $toggleSwitch.Style = $window.Resources["ToggleSwitchStyle"]
     $toggleSwitch.Margin = "0,0,0,10"
     $toggleSwitch.Tag = $cleanup.Value
     [Windows.Controls.Grid]::SetColumn($toggleSwitch, 1)
-
+    
     # Create content
     $cleanupName = New-Object Windows.Controls.TextBlock
     $cleanupName.Text = $cleanup.Value.content
@@ -3009,7 +3122,7 @@ foreach ($cleanup in $cleanupTasks.GetEnumerator()) {
     $cleanupDescription.Opacity = 0.7
     $cleanupDescription.Margin = "0,5,0,0"
     $cleanupDescription.Foreground = $window.Resources["TextColor"]
-
+    
     # Add elements to layout
     $headerGrid.Children.Add($cleanupName)
     $headerGrid.Children.Add($toggleSwitch)
@@ -3025,8 +3138,64 @@ $categoriesPanel.Children.Add($appsWrapPanel)
 $optimizationsPanel.Children.Add($optimizationsWrapPanel)
 $cleanPanel.Children.Add($cleanupWrapPanel)
 
-# Event Handlers
+# Function to show a specific tab
+function Show-Tab {
+    param([string]$TabName)
+    
+    # Hide all tab content
+    $appsContent.Visibility = "Collapsed"
+    $optimizeContent.Visibility = "Collapsed"
+    $infoContent.Visibility = "Collapsed"
+    $cleanContent.Visibility = "Collapsed"
+    $debloatContent.Visibility = "Collapsed"
+    $consoleView.Visibility = "Collapsed"
+    
+    # Show the selected tab
+    $window.FindName($TabName).Visibility = "Visible"
+    
+    # Update button styles to show which tab is selected
+    $appsTab.IsSelected = $false
+    $optimizeTab.IsSelected = $false
+    $cleanTab.IsSelected = $false
+    $infoTab.IsSelected = $false
+    $debloatTab.IsSelected = $false
+    $consoleTab.IsSelected = $false
+    
+    # Set the selected tab and control search box visibility
+    switch ($TabName) {
+        "AppsContent" { 
+            $appsTab.IsSelected = $true 
+            $SearchBox.Visibility = "Visible"
+        }
+        "OptimizeContent" { 
+            $optimizeTab.IsSelected = $true 
+            $SearchBox.Visibility = "Visible"
+        }
+        "CleanContent" { 
+            $cleanTab.IsSelected = $true 
+            $SearchBox.Visibility = "Visible"
+        }
+        "InfoContent" { 
+            $infoTab.IsSelected = $true 
+            $SearchBox.Visibility = "Visible"
+        }
+        "DebloatContent" { 
+            $debloatTab.IsSelected = $true 
+            $SearchBox.Visibility = "Visible"
+        }
+        "ConsoleView" { 
+            $consoleTab.IsSelected = $true 
+            $SearchBox.Visibility = "Collapsed"  # Hide search box in console tab
+        }
+    }
+}
+
 [Console]::SetOut([System.IO.TextWriter]::Null)
+
+# Add event handler for Clear Console button
+$clearConsoleButton.Add_Click({
+    $consoleOutput.Clear()
+})
 
 $closeButton.Add_Click({ 
     [void]$window.Close()
@@ -3055,25 +3224,23 @@ $themeToggle.Add_Click({
 })
 
 $appsTab.Add_Click({
-    $appsContent.Visibility = "Visible"
-    $optimizeContent.Visibility = "Collapsed"
-    $infoContent.Visibility = "Collapsed"
-    $cleanContent.Visibility = "Collapsed"
-    $debloatContent.Visibility = "Collapsed"
+    Show-Tab -TabName "AppsContent"
 })
 
 $revertButton.Add_Click({
-    $result = [System.Windows.MessageBox]::Show(
-        "Are you sure you want to revert changes?`n`nWARNING! It will revert ALL your OPTIMIZATION changes you have made. You will have to re-apply everything you want to have optimized again!",
-        "Confirm Revert",
-        [System.Windows.MessageBoxButton]::YesNo,
-        [System.Windows.MessageBoxImage]::Warning
-    )
-    
-    if ($result -eq [System.Windows.MessageBoxResult]::Yes) {
-        Write-Host "Reverting all optimization changes..." -ForegroundColor Yellow
-        reg import "C:\RegistryBackup\RegistryBackup.reg"
-        Write-Host "All changes have been reverted successfully!" -ForegroundColor Green
+    Navigate-And-Execute {
+        $result = [System.Windows.MessageBox]::Show(
+            "Are you sure you want to revert changes?`n`nWARNING! It will revert ALL your OPTIMIZATION changes you have made. You will have to re-apply everything you want to have optimized again!",
+            "Confirm Revert",
+            [System.Windows.MessageBoxButton]::YesNo,
+            [System.Windows.MessageBoxImage]::Warning
+        )
+        
+        if ($result -eq [System.Windows.MessageBoxResult]::Yes) {
+            Write-Host "Reverting all optimization changes..." -ForegroundColor Yellow
+            reg import "C:\RegistryBackup\RegistryBackup.reg"
+            Write-Host "All changes have been reverted successfully!" -ForegroundColor Green
+        }
     }
 })
 
@@ -3115,132 +3282,163 @@ $latencyTweaksButton.Add_Click({
 })
 
 $optimizeTab.Add_Click({
-    $appsContent.Visibility = "Collapsed"
-    $optimizeContent.Visibility = "Visible"
-    $infoContent.Visibility = "Collapsed"
-    $cleanContent.Visibility = "Collapsed"
-    $debloatContent.Visibility = "Collapsed"
+    Show-Tab -TabName "OptimizeContent"
     FilterOptimizations "All"
 })
 
 $cleanTab.Add_Click({
-    $appsContent.Visibility = "Collapsed"
-    $optimizeContent.Visibility = "Collapsed"
-    $infoContent.Visibility = "Collapsed"
-    $cleanContent.Visibility = "Visible"
-    $debloatContent.Visibility = "Collapsed"
+    Show-Tab -TabName "CleanContent"
 })
 
 $debloatTab.Add_Click({
-    $appsContent.Visibility = "Collapsed"
-    $optimizeContent.Visibility = "Collapsed"
-    $cleanContent.Visibility = "Collapsed"
-    $infoContent.Visibility = "Collapsed"
-    $debloatContent.Visibility = "Visible"
-})
-
-$cleanButton.Add_Click({
-    Ensure-SingleRestorePoint
-    $selectedCleanups = $cleanPanel.Children[0].Children | 
-        ForEach-Object {
-            $toggleSwitch = $_.Child.Children[0].Children[1]
-            if ($toggleSwitch.IsChecked) {
-                $toggleSwitch.Tag
-            }
-        }
-
-    if ($null -eq $selectedCleanups -or @($selectedCleanups).Count -eq 0) {
-        Write-Host "`nNo cleanup options selected." -ForegroundColor Yellow
-        return
-    }
-
-    Write-Host "`n=== Starting Selected Cleanup Tasks ===" -ForegroundColor Cyan
-
-    foreach ($cleanup in $selectedCleanups) {
-        Write-Host "`nExecuting $($cleanup.content)..." -ForegroundColor Yellow
-        & $cleanup.action
-        Write-Host "$($cleanup.content) completed successfully!" -ForegroundColor Green
-    }
-
-    Write-Host "`n=== All Selected Cleanup Tasks Completed ===`n" -ForegroundColor Cyan
-})
-
-$runTweaksButton.Add_Click({
-    Ensure-SingleRestorePoint
-    $tweaksApplied = $false
-
-    # Process toggle switches if any are selected
-    $selectedTweaks = $optimizationsPanel.Children[0].Children | 
-        ForEach-Object {
-            $toggleSwitch = $_.Child.Children[0].Children[1]
-            if ($toggleSwitch.IsChecked) {
-                $tweaksApplied = $true
-                $toggleSwitch.Tag
-            }
-        }
-
-    if ($tweaksApplied) {
-        Write-Host "`n=== Applying Selected Tweaks ===" -ForegroundColor Cyan
-        foreach ($tweak in $selectedTweaks) {
-            Write-Host "`nApplying $($tweak.content)..." -ForegroundColor Yellow
-            & $tweak.action
-            Write-Host "$($tweak.content) applied successfully!" -ForegroundColor Green
-        }
-    }
-
-    # Process DNS settings independently
-    $selectedDNS = $DNSComboBox.SelectedItem.Content
-    if ($selectedDNS -and $selectedDNS -ne "Select DNS") {
-        Write-Host "`nModifying DNS settings..." -ForegroundColor Cyan
-        $adapters = Get-NetAdapter | Where-Object {($_.Name -like "*Ethernet*" -or $_.Name -like "*Wi-Fi*") -and $_.Status -eq "Up"}
-
-        switch ($selectedDNS) {
-            "Google DNS" {
-                foreach ($adapter in $adapters) {
-                    netsh interface ipv4 set dns name="$($adapter.Name)" static 8.8.8.8 primary
-                    netsh interface ipv4 add dns name="$($adapter.Name)" 8.8.4.4 index=2
-                    Write-Host "Setting Google DNS for adapter: $($adapter.Name)" -ForegroundColor Yellow
-                }
-            }
-            "Cloudflare DNS" {
-                foreach ($adapter in $adapters) {
-                    netsh interface ipv4 set dns name="$($adapter.Name)" static 1.1.1.1 primary
-                    netsh interface ipv4 add dns name="$($adapter.Name)" 1.0.0.1 index=2
-                    Write-Host "Setting Cloudflare DNS for adapter: $($adapter.Name)" -ForegroundColor Yellow
-                }
-            }
-            "Default DNS" {
-                foreach ($adapter in $adapters) {
-                    netsh interface ipv4 set dns name="$($adapter.Name)" dhcp
-                    Write-Host "Resetting DNS for adapter: $($adapter.Name)" -ForegroundColor Yellow
-                }
-            }
-        }
-        ipconfig /flushdns
-        Write-Host "DNS settings updated successfully!" -ForegroundColor Green
-        $tweaksApplied = $true
-    }
-
-    if ($tweaksApplied) {
-        Write-Host "`n=== All Selected Changes Applied ===`n" -ForegroundColor Cyan
-    } else {
-        Write-Host "`nNo changes selected to apply." -ForegroundColor Yellow
-    }
+    Show-Tab -TabName "DebloatContent"
 })
 
 $infoTab.Add_Click({
-    
     $currentDateTime.Text = "Current Date/Time: " + (Get-Date -Format "MM/dd/yyyy HH:mm:ss")
-    $appsContent.Visibility = "Collapsed"
-    $optimizeContent.Visibility = "Collapsed"
-    $infoContent.Visibility = "Visible"
-    $debloatContent.Visibility = "Collapsed"
-    $cleanContent.Visibility = "Collapsed"
+    Show-Tab -TabName "InfoContent"
+})
+
+$consoleTab.Add_Click({
+    Show-Tab -TabName "ConsoleView"
+})
+
+# Fix the clean button click handler
+$cleanButton.Add_Click({
+    Navigate-And-Execute {
+        Ensure-SingleRestorePoint
+        
+        $selectedCleanups = $cleanPanel.Children[0].Children | 
+            ForEach-Object {
+                $toggleSwitch = $_.Child.Children[0].Children[1]
+                if ($toggleSwitch.IsChecked) {
+                    $toggleSwitch.Tag
+                }
+            }
+        
+        # Force array creation for proper count
+        $selectedCleanups = @($selectedCleanups)
+        
+        if ($null -eq $selectedCleanups -or $selectedCleanups.Count -eq 0) {
+            Write-Host "`nNo cleanup options selected." -ForegroundColor Yellow
+            return
+        }
+        
+        Write-Host "`n=== Starting Selected Cleanup Tasks ===" -ForegroundColor Cyan
+        Write-Host "Selected $($selectedCleanups.Count) cleanup tasks to run." -ForegroundColor Cyan
+        
+        foreach ($cleanup in $selectedCleanups) {
+            Write-Host "`nExecuting $($cleanup.content)..." -ForegroundColor Yellow
+            & $cleanup.action
+            Write-Host "$($cleanup.content) completed successfully!" -ForegroundColor Green
+        }
+        
+        Write-Host "`n=== All Selected Cleanup Tasks Completed ===`n" -ForegroundColor Cyan
+    }
+})
+
+$runTweaksButton.Add_Click({
+    Navigate-And-Execute {
+        Ensure-SingleRestorePoint
+        
+        $tweaksApplied = $false
+        # Process toggle switches if any are selected
+        $selectedTweaks = $optimizationsPanel.Children[0].Children | 
+            ForEach-Object {
+                $toggleSwitch = $_.Child.Children[0].Children[1]
+                if ($toggleSwitch.IsChecked) {
+                    $tweaksApplied = $true
+                    $toggleSwitch.Tag
+                }
+            }
+        
+        # Force array creation for proper count
+        $selectedTweaks = @($selectedTweaks)
+        
+        if ($tweaksApplied) {
+            Write-Host "`n=== Applying Selected Tweaks ===" -ForegroundColor Cyan
+            Write-Host "Selected $($selectedTweaks.Count) tweaks to apply." -ForegroundColor Cyan
+            
+            foreach ($tweak in $selectedTweaks) {
+                Write-Host "`nApplying $($tweak.content)..." -ForegroundColor Yellow
+                & $tweak.action
+                Write-Host "$($tweak.content) applied successfully!" -ForegroundColor Green
+            }
+        }
+        
+        # Process DNS settings independently
+        $selectedDNS = $DNSComboBox.SelectedItem.Content
+        if ($selectedDNS -and $selectedDNS -ne "Select DNS") {
+            Write-Host "`nModifying DNS settings..." -ForegroundColor Cyan
+            $adapters = Get-NetAdapter | Where-Object {($_.Name -like "*Ethernet*" -or $_.Name -like "*Wi-Fi*") -and $_.Status -eq "Up"}
+            
+            switch ($selectedDNS) {
+                "Google DNS" {
+                    foreach ($adapter in $adapters) {
+                        netsh interface ipv4 set dns name="$($adapter.Name)" static 8.8.8.8 primary
+                        netsh interface ipv4 add dns name="$($adapter.Name)" 8.8.4.4 index=2
+                        Write-Host "Setting Google DNS for adapter: $($adapter.Name)" -ForegroundColor Yellow
+                    }
+                }
+                "Cloudflare DNS" {
+                    foreach ($adapter in $adapters) {
+                        netsh interface ipv4 set dns name="$($adapter.Name)" static 1.1.1.1 primary
+                        netsh interface ipv4 add dns name="$($adapter.Name)" 1.0.0.1 index=2
+                        Write-Host "Setting Cloudflare DNS for adapter: $($adapter.Name)" -ForegroundColor Yellow
+                    }
+                }
+                "Default DNS" {
+                    foreach ($adapter in $adapters) {
+                        netsh interface ipv4 set dns name="$($adapter.Name)" dhcp
+                        Write-Host "Resetting DNS for adapter: $($adapter.Name)" -ForegroundColor Yellow
+                    }
+                }
+            }
+            ipconfig /flushdns
+            Write-Host "DNS settings updated successfully!" -ForegroundColor Green
+            $tweaksApplied = $true
+        }
+        
+        if ($tweaksApplied) {
+            Write-Host "`n=== All Selected Changes Applied ===`n" -ForegroundColor Cyan
+        } else {
+            Write-Host "`nNo changes selected to apply." -ForegroundColor Yellow
+        }
+    }
 })
 
 $tosAgreeButton.Add_Click({
     $tosOverlay.Visibility = "Collapsed"
 })
+
+# Helper function to navigate to console tab and then run commands
+function Navigate-And-Execute {
+    param(
+        [scriptblock]$ScriptBlock
+    )
+    
+    # First navigate to console tab
+    Show-Tab -TabName "ConsoleView"
+    
+    # Use dispatcher to allow UI to update before executing commands
+    $window.Dispatcher.Invoke([Action]{}, [System.Windows.Threading.DispatcherPriority]::Render)
+    
+    # Use a timer to delay execution without freezing the UI
+    $timer = New-Object System.Windows.Threading.DispatcherTimer
+    $timer.Interval = [TimeSpan]::FromMilliseconds(500)
+    $timer.Tag = $ScriptBlock
+    
+    $timer.Add_Tick({
+        # Stop the timer
+        $this.Stop()
+        
+        # Execute the script block
+        & $this.Tag
+    })
+    
+    # Start the timer
+    $timer.Start()
+}
 
 function Remove-AppTraces {
     param($app)
@@ -3279,23 +3477,31 @@ if (-Not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
 }
 
 $installButton.Add_Click({
-    Ensure-Chocolatey
-    $selectedApps = $categoriesPanel.Children[0].Children | 
-        ForEach-Object {
-            $toggleSwitch = $_.Child.Children[0].Children[1]
-            if ($toggleSwitch.IsChecked) {
-                $toggleSwitch.Tag
+    Navigate-And-Execute {
+        Ensure-Chocolatey
+        
+        $selectedApps = $categoriesPanel.Children[0].Children | 
+            ForEach-Object {
+                $toggleSwitch = $_.Child.Children[0].Children[1]
+                if ($toggleSwitch.IsChecked) {
+                    $toggleSwitch.Tag
+                }
             }
+        
+        # Force array creation for proper count
+        $selectedApps = @($selectedApps)
+        
+        if ($null -eq $selectedApps -or $selectedApps.Count -eq 0) {
+            Write-Host "`nNo apps selected for installation." -ForegroundColor Yellow
+            return
         }
-
-    if ($null -eq $selectedApps -or @($selectedApps).Count -eq 0) {
-        Write-Host "`nNo apps selected for installation." -ForegroundColor Yellow
-        return
-    }
-
-    Write-Host "`n=== Starting Installation Process ===" -ForegroundColor Cyan
-    foreach ($app in $selectedApps) {
-        Write-Host "`nProcessing $($app.content)..." -ForegroundColor Cyan
+        
+        Write-Host "`n=== Starting Installation Process ===" -ForegroundColor Cyan
+        Write-Host "Selected $($selectedApps.Count) apps to install." -ForegroundColor Cyan
+        
+        # Rest of your installation code...
+        foreach ($app in $selectedApps) {
+            Write-Host "`nProcessing $($app.content)..." -ForegroundColor Cyan
 
         if ($app.installType -eq "manual") {
             Write-Host "This application requires manual installation." -ForegroundColor Yellow
@@ -3396,26 +3602,35 @@ $installButton.Add_Click({
         }
     }
     Write-Host "`n=== Installation Process Complete ===`n" -ForegroundColor Cyan
+    }
 })
 
 $uninstallButton.Add_Click({
-    Ensure-Chocolatey
-    $selectedApps = $categoriesPanel.Children[0].Children | 
-        ForEach-Object {
-            $toggleSwitch = $_.Child.Children[0].Children[1]
-            if ($toggleSwitch.IsChecked) {
-                $toggleSwitch.Tag
+    Navigate-And-Execute {
+        Ensure-Chocolatey
+        
+        $selectedApps = $categoriesPanel.Children[0].Children | 
+            ForEach-Object {
+                $toggleSwitch = $_.Child.Children[0].Children[1]
+                if ($toggleSwitch.IsChecked) {
+                    $toggleSwitch.Tag
+                }
             }
+        
+        # Force array creation for proper count
+        $selectedApps = @($selectedApps)
+        
+        if ($null -eq $selectedApps -or $selectedApps.Count -eq 0) {
+            Write-Host "`nNo apps selected for uninstallation." -ForegroundColor Yellow
+            return
         }
-
-    if ($null -eq $selectedApps -or @($selectedApps).Count -eq 0) {
-        Write-Host "`nNo apps selected for uninstallation." -ForegroundColor Yellow
-        return
-    }
-
-    Write-Host "`n=== Starting Uninstallation Process ===" -ForegroundColor Cyan
-    foreach ($app in $selectedApps) {
-        Write-Host "`nProcessing $($app.content)..." -ForegroundColor Cyan
+        
+        Write-Host "`n=== Starting Uninstallation Process ===" -ForegroundColor Cyan
+        Write-Host "Selected $($selectedApps.Count) apps to uninstall." -ForegroundColor Cyan
+        
+        # Rest of your uninstallation code...
+        foreach ($app in $selectedApps) {
+            Write-Host "`nProcessing $($app.content)..." -ForegroundColor Cyan
 
         if ($app.installType -eq "manual") {
             Write-Host "This application requires manual uninstallation." -ForegroundColor Yellow
@@ -3490,41 +3705,102 @@ $uninstallButton.Add_Click({
         }
     }
     Write-Host "`n=== Uninstallation Process Complete ===`n" -ForegroundColor Cyan
+    }
 })
 
 $debloatButton.Add_Click({
-    # Create a restore point first
-    Ensure-SingleRestorePoint
-
-    $selectedDebloatItems = $debloatPanel.Children[0].Children | 
-        ForEach-Object {
-            $toggleSwitch = $_.Child.Children[0].Children[1]
-            if ($toggleSwitch.IsChecked) {
-                $toggleSwitch.Tag
+    Navigate-And-Execute {
+        Ensure-SingleRestorePoint
+        
+        $selectedDebloatItems = $debloatPanel.Children[0].Children | 
+            ForEach-Object {
+                $toggleSwitch = $_.Child.Children[0].Children[1]
+                if ($toggleSwitch.IsChecked) {
+                    $toggleSwitch.Tag
+                }
             }
+        
+        # Force array creation for proper count
+        $selectedDebloatItems = @($selectedDebloatItems)
+        
+        if ($null -eq $selectedDebloatItems -or $selectedDebloatItems.Count -eq 0) {
+            Write-Host "`nNo debloat options selected." -ForegroundColor Yellow
+            return
         }
-
-    if ($null -eq $selectedDebloatItems -or @($selectedDebloatItems).Count -eq 0) {
-        Write-Host "`nNo debloat options selected." -ForegroundColor Yellow
-        return
+        
+        Write-Host "`n=== Running Selected Debloat Actions ===" -ForegroundColor Cyan
+        Write-Host "Selected $($selectedDebloatItems.Count) debloat options to apply." -ForegroundColor Cyan
+        
+        foreach ($item in $selectedDebloatItems) {
+            Write-Host "`nExecuting $($item.content)..." -ForegroundColor Yellow
+            & $item.action
+            Write-Host "$($item.content) completed successfully!" -ForegroundColor Green
+        }
+        
+        Write-Host "`n=== All Debloat Actions Completed ===`n" -ForegroundColor Cyan
     }
-
-    Write-Host "`n=== Running Selected Debloat Actions ===" -ForegroundColor Cyan
-
-    foreach ($item in $selectedDebloatItems) {
-        Write-Host "`nExecuting $($item.content)..." -ForegroundColor Yellow
-        & $item.action
-        Write-Host "$($item.content) completed successfully!" -ForegroundColor Green
-    }
-
-    Write-Host "`n=== All Debloat Actions Completed ===`n" -ForegroundColor Cyan
 })
 
-# Enable Window Dragging
-$window.Add_MouseLeftButtonDown({ $window.DragMove() })
+# Override Write-Host to redirect to console output
+function Write-Host {
+    param(
+        [Parameter(Position=0, ValueFromPipeline=$true)]
+        [string]$Object,
+        [Parameter()]
+        [ConsoleColor]$ForegroundColor,
+        [Parameter()]
+        [ConsoleColor]$BackgroundColor,
+        [Parameter()]
+        [switch]$NoNewline
+    )
+    
+    # Map ConsoleColor to hex color
+    $colorMap = @{
+        'Black' = '#000000'
+        'DarkBlue' = '#000080'
+        'DarkGreen' = '#008000'
+        'DarkCyan' = '#008080'
+        'DarkRed' = '#800000'
+        'DarkMagenta' = '#800080'
+        'DarkYellow' = '#808000'
+        'Gray' = '#808080'
+        'DarkGray' = '#404040'
+        'Blue' = '#0000FF'
+        'Green' = '#00FF00'
+        'Cyan' = '#00FFFF'
+        'Red' = '#FF0000'
+        'Magenta' = '#FF00FF'
+        'Yellow' = '#FFFF00'
+        'White' = '#FFFFFF'
+    }
+    
+    $color = if ($ForegroundColor) { $colorMap[$ForegroundColor.ToString()] } else { "#CCCCCC" }
+    
+    # Also write to the original console
+    [Console]::WriteLine($Object)
+    
+    Write-ToConsole -Text $Object -Color $color
+}
 
-# Enable console output for installation messages only
-[Console]::SetOut([Console]::Out)
+# Override Write-Output to redirect to console output
+function Write-Output {
+    param(
+        [Parameter(Position=0, ValueFromPipeline=$true)]
+        $Object
+    )
+    
+    if ($Object -is [string]) {
+        Write-ToConsole -Text $Object
+    } else {
+        Write-ToConsole -Text ($Object | Out-String)
+    }
+    
+    # Also send to the original output stream
+    $Object
+}
 
-# Show Window
-$window.ShowDialog()
+# Show the default tab on startup
+Show-Tab -TabName "AppsContent"
+
+# Show the window
+$window.ShowDialog() | Out-Null
