@@ -703,8 +703,8 @@ $optimizations = @{
             
             $tcpipSettings = @{
                 "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" = @{
-                    "DefaultTTL" = 0x40
-                    "DisableTaskOffload" = 1
+                    "DefaultTTL" = 0x80
+                    "DisableTaskOffload" = 0
                     "EnableConnectionRateLimiting" = 0
                     "EnableDCA" = 1
                     "EnablePMTUBHDetect" = 0
@@ -720,7 +720,7 @@ $optimizations = @{
                     "EnableTCPA" = 0
                     "Tcp1323Opts" = 1
                     "TcpCreateAndConnectTcbRateLimitDepth" = 0
-                    "TcpMaxDataRetransmissions" = 2
+                    "TcpMaxDataRetransmissions" = 3
                     "TcpMaxDupAcks" = 2
                     "TcpMaxSendFree" = 0xffff
                     "TcpNumConnections" = 0xfffffe
@@ -822,6 +822,8 @@ $optimizations = @{
             Write-Host "`n=== Network Power Saving Features Successfully Disabled! ===" -ForegroundColor Cyan
         }
     }
+
+
     
     "Configure_QoS_Settings" = @{
         content = "Optimize Quality of Service (QoS) Settings"
@@ -881,7 +883,7 @@ $optimizations = @{
             Set-ItemProperty -Path $systemProfilePath -Name "NetworkThrottlingIndex" -Value 0xffffffff -Type DWord
             
             Write-Host "Setting SystemResponsiveness to prioritize network traffic" -ForegroundColor Green
-            Set-ItemProperty -Path $systemProfilePath -Name "SystemResponsiveness" -Value 0 -Type DWord
+            Set-ItemProperty -Path $systemProfilePath -Name "SystemResponsiveness" -Value 10 -Type DWord
             
             Write-Host "`n=== Network Throttling Optimization Complete! ===" -ForegroundColor Cyan
         }
@@ -1357,7 +1359,7 @@ $optimizations = @{
     "Optimize_Power_Settings" = @{
         content = "Optimize Power Settings for Performance"
         description = "Configures power settings for maximum performance by disabling power throttling and sleep states that can reduce FPS in games"
-        category = "FPS"
+        category = @("FPS", "Latency")
         action = {
             Write-Host "`n=== Starting Power Settings Optimization ===" -ForegroundColor Cyan
             Write-Host "This will optimize power settings for maximum performance." -ForegroundColor Yellow
@@ -1424,11 +1426,10 @@ $optimizations = @{
             
             $memorySettings = @{
                 "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" = @{
-                    "ClearPageFileAtShutdown" = 1
                     "FeatureSettings" = 0
                     "FeatureSettingsOverrideMask" = 3
                     "FeatureSettingsOverride" = 3
-                    "LargeSystemCache" = 1
+                    "LargeSystemCache" = 0
                     "NonPagedPoolQuota" = 0
                     "NonPagedPoolSize" = 0
                     "SessionViewSize" = 0xc0
@@ -1545,24 +1546,15 @@ $optimizations = @{
     "Optimize_System_Responsiveness" = @{
         content = "Optimize System Responsiveness"
         description = "Optimizes system responsiveness settings to prioritize foreground applications and reduce input lag in games"
-        category = "FPS"
+        category = @("FPS", "Latency")
         action = {
             Write-Host "`n=== Starting System Responsiveness Optimization ===" -ForegroundColor Cyan
             Write-Host "This will optimize system responsiveness settings." -ForegroundColor Yellow
             
             $systemProfileSettings = @{
                 "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" = @{
-                    "SystemResponsiveness" = 0
-                    "NetworkThrottlingIndex" = 0xfffffff
-                }
-                "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games" = @{
-                    "Affinity" = 0
-                    "Background Only" = "False"
-                    "Clock Rate" = 0x2710
-                    "GPU Priority" = 8
-                    "Priority" = 6
-                    "Scheduling Category" = "High"
-                    "SFIO Priority" = "High"
+                    "SystemResponsiveness" = 10
+                    "NetworkThrottlingIndex" = 0xffffffff
                 }
             }
             
@@ -1592,6 +1584,102 @@ $optimizations = @{
         }
     }
     
+"Enable_GPU_Low_Latency_Mode" = @{
+    content = "Enable GPU Low Latency Mode (NVIDIA / AMD)"
+    description = "Configures GPU driver settings to minimize render queue depth and reduce system latency for competitive FPS games"
+    category = "Latency"
+    action = {
+        Write-Host "`n=== Enabling GPU Low Latency Mode ===" -ForegroundColor Cyan
+        
+        # Detect GPU vendor
+        $gpuInfo = Get-WmiObject Win32_VideoController | Where-Object { $_.AdapterDACType -ne "Internal" }
+        $isNvidia = $gpuInfo.Name -match "NVIDIA"
+        $isAMD = $gpuInfo.Name -match "AMD|Radeon"
+        
+        if ($isNvidia) {
+            Write-Host "NVIDIA GPU detected, configuring NVIDIA Reflex settings..." -ForegroundColor Green
+            
+            # NVIDIA Low Latency Mode (Ultra)
+            $nvPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000"
+            if (!(Test-Path $nvPath)) {
+                $nvPath = Get-ChildItem "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}" | 
+                          Where-Object { Get-ItemProperty -Path $_.PSPath -Name "DriverDesc" -ErrorAction SilentlyContinue } | 
+                          Where-Object { (Get-ItemProperty -Path $_.PSPath).DriverDesc -like "*NVIDIA*" } | 
+                          Select-Object -First 1 -ExpandProperty PSPath
+            }
+            
+            if ($nvPath) {
+                # Create NVIDIA profile settings for ultra-low latency
+                Set-ItemProperty -Path $nvPath -Name "RMHdcpKeyglobZero" -Value 1 -Type DWord -ErrorAction SilentlyContinue
+                
+                # Force maximum pre-rendered frames to 1 (lowest latency)
+                $nvidiaProfilePath = "HKCU:\Software\NVIDIA Corporation\Global\NVTweak"
+                if (!(Test-Path $nvidiaProfilePath)) {
+                    New-Item -Path $nvidiaProfilePath -Force | Out-Null
+                }
+                Set-ItemProperty -Path $nvidiaProfilePath -Name "MaxPreRenderedFrames" -Value 1 -Type DWord -ErrorAction SilentlyContinue
+                
+                # Enable Ultra Low Latency mode
+                $nvCplPath = "HKCU:\Software\NVIDIA Corporation\Global\NvCplApi\Profiles"
+                if (!(Test-Path $nvCplPath)) {
+                    New-Item -Path $nvCplPath -Force | Out-Null
+                }
+                Set-ItemProperty -Path $nvCplPath -Name "0x00000000" -Value 0x00000002 -Type DWord -ErrorAction SilentlyContinue
+            }
+        }
+        elseif ($isAMD) {
+            Write-Host "AMD GPU detected, configuring Anti-Lag settings..." -ForegroundColor Green
+            
+            # AMD Anti-Lag settings
+            $amdPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000"
+            if (!(Test-Path $amdPath)) {
+                $amdPath = Get-ChildItem "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}" | 
+                           Where-Object { Get-ItemProperty -Path $_.PSPath -Name "DriverDesc" -ErrorAction SilentlyContinue } | 
+                           Where-Object { (Get-ItemProperty -Path $_.PSPath).DriverDesc -like "*AMD*" -or (Get-ItemProperty -Path $_.PSPath).DriverDesc -like "*Radeon*" } | 
+                           Select-Object -First 1 -ExpandProperty PSPath
+            }
+            
+            if ($amdPath) {
+                # Enable AMD Anti-Lag
+                Set-ItemProperty -Path $amdPath -Name "KMD_EnableAntiLag" -Value 1 -Type DWord -ErrorAction SilentlyContinue
+                
+                # Set Flip Queue Size to 1 (minimum pre-rendered frames)
+                Set-ItemProperty -Path $amdPath -Name "FlipQueueSize" -Value 1 -Type DWord -ErrorAction SilentlyContinue
+            }
+        }
+        
+        # Configure universal game task settings
+        Write-Host "Configuring universal game task settings..." -ForegroundColor Yellow
+        $gamesTaskPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games"
+        if (!(Test-Path $gamesTaskPath)) {
+            New-Item -Path $gamesTaskPath -Force | Out-Null
+        }
+        
+        # Add all the game task settings
+        $gameTaskSettings = @{
+            "Affinity" = 0
+            "Background Only" = "False"
+            "Clock Rate" = 0x2710
+            "GPU Priority" = 8
+            "Priority" = 6
+            "Scheduling Category" = "High"
+            "SFIO Priority" = "High"
+        }
+        
+        foreach ($setting in $gameTaskSettings.GetEnumerator()) {
+            if ($setting.Value -is [string]) {
+                Write-Host "Setting $($setting.Key) to $($setting.Value)" -ForegroundColor Green
+                Set-ItemProperty -Path $gamesTaskPath -Name $setting.Key -Value $setting.Value -Type String
+            } else {
+                Write-Host "Setting $($setting.Key) to $($setting.Value)" -ForegroundColor Green
+                Set-ItemProperty -Path $gamesTaskPath -Name $setting.Key -Value $setting.Value -Type DWord
+            }
+        }
+        
+        Write-Host "`n=== GPU Low Latency Mode Enabled! ===" -ForegroundColor Cyan
+    }
+}
+
     "Optimize_Desktop_Settings" = @{
         content = "Optimize Desktop and UI Settings"
         description = "Optimizes desktop and user interface settings to improve responsiveness and reduce system overhead"
@@ -1848,7 +1936,7 @@ $optimizations = @{
                 "MaximumPortsServiced" = 0x3
                 "SendOutputToAllPorts" = 0x1
                 "PollStatusIterations" = 0x1          # Minimum polling
-                "ThreadPriority" = 0x7                # Real-time priority
+                "ThreadPriority" = 0x4                # Real-time priority
                 "BufferSize" = 0x960                  # Enhanced buffer
                 "ResendIterations" = 0x1              # Minimum resend delay
                 "KeyboardMode" = 0x1                  # Enhanced mode
@@ -1871,7 +1959,7 @@ $optimizations = @{
             }
             "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" = @{
                 "NetworkThrottlingIndex" = 0xffffffff
-                "SystemResponsiveness" = 0x0
+                "SystemResponsiveness" = 10
                 "KeyboardTimingThreshold" = 0x1
             }
         }
