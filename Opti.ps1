@@ -1602,16 +1602,13 @@ $optimizations = @{
             # NVIDIA Low Latency Mode (Ultra)
             $nvPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000"
             if (!(Test-Path $nvPath)) {
-                $nvPath = Get-ChildItem "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}" | 
-                          Where-Object { Get-ItemProperty -Path $_.PSPath -Name "DriverDesc" -ErrorAction SilentlyContinue } | 
-                          Where-Object { (Get-ItemProperty -Path $_.PSPath).DriverDesc -like "*NVIDIA*" } | 
-                          Select-Object -First 1 -ExpandProperty PSPath
+                $nvPath = Get-ChildItem "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}" |
+                           Where-Object { Get-ItemProperty -Path $_.PSPath -Name "DriverDesc" -ErrorAction SilentlyContinue } |
+                           Where-Object { (Get-ItemProperty -Path $_.PSPath).DriverDesc -like "*NVIDIA*" } |
+                           Select-Object -First 1 -ExpandProperty PSPath
             }
             
             if ($nvPath) {
-                # Create NVIDIA profile settings for ultra-low latency
-                Set-ItemProperty -Path $nvPath -Name "RMHdcpKeyglobZero" -Value 1 -Type DWord -ErrorAction SilentlyContinue
-                
                 # Force maximum pre-rendered frames to 1 (lowest latency)
                 $nvidiaProfilePath = "HKCU:\Software\NVIDIA Corporation\Global\NVTweak"
                 if (!(Test-Path $nvidiaProfilePath)) {
@@ -1625,6 +1622,9 @@ $optimizations = @{
                     New-Item -Path $nvCplPath -Force | Out-Null
                 }
                 Set-ItemProperty -Path $nvCplPath -Name "0x00000000" -Value 0x00000002 -Type DWord -ErrorAction SilentlyContinue
+                
+                Write-Host "✓ Maximum pre-rendered frames set to 1" -ForegroundColor Yellow
+                Write-Host "✓ Ultra Low Latency mode enabled" -ForegroundColor Yellow
             }
         }
         elseif ($isAMD) {
@@ -1633,10 +1633,10 @@ $optimizations = @{
             # AMD Anti-Lag settings
             $amdPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000"
             if (!(Test-Path $amdPath)) {
-                $amdPath = Get-ChildItem "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}" | 
-                           Where-Object { Get-ItemProperty -Path $_.PSPath -Name "DriverDesc" -ErrorAction SilentlyContinue } | 
-                           Where-Object { (Get-ItemProperty -Path $_.PSPath).DriverDesc -like "*AMD*" -or (Get-ItemProperty -Path $_.PSPath).DriverDesc -like "*Radeon*" } | 
-                           Select-Object -First 1 -ExpandProperty PSPath
+                $amdPath = Get-ChildItem "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}" |
+                            Where-Object { Get-ItemProperty -Path $_.PSPath -Name "DriverDesc" -ErrorAction SilentlyContinue } |
+                            Where-Object { (Get-ItemProperty -Path $_.PSPath).DriverDesc -like "*AMD*" -or (Get-ItemProperty -Path $_.PSPath).DriverDesc -like "*Radeon*" } |
+                            Select-Object -First 1 -ExpandProperty PSPath
             }
             
             if ($amdPath) {
@@ -1645,23 +1645,24 @@ $optimizations = @{
                 
                 # Set Flip Queue Size to 1 (minimum pre-rendered frames)
                 Set-ItemProperty -Path $amdPath -Name "FlipQueueSize" -Value 1 -Type DWord -ErrorAction SilentlyContinue
+                
+                Write-Host "✓ AMD Anti-Lag enabled" -ForegroundColor Yellow
+                Write-Host "✓ Flip Queue Size set to 1" -ForegroundColor Yellow
             }
         }
         
-        # Configure universal game task settings
-        Write-Host "Configuring universal game task settings..." -ForegroundColor Yellow
+        # Configure universal game task settings with SAFE values
+        Write-Host "Configuring universal game task settings with safe values..." -ForegroundColor Yellow
         $gamesTaskPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games"
         if (!(Test-Path $gamesTaskPath)) {
             New-Item -Path $gamesTaskPath -Force | Out-Null
         }
         
-        # Add all the game task settings
+        # Add all the game task settings with SAFE values
         $gameTaskSettings = @{
-            "Affinity" = 0
             "Background Only" = "False"
-            "Clock Rate" = 0x2710
-            "GPU Priority" = 8
-            "Priority" = 6
+            "GPU Priority" = 4            # Safe value (0-3 is normal range)
+            "Priority" = 3                # Above Normal (safer than Real-time)
             "Scheduling Category" = "High"
             "SFIO Priority" = "High"
         }
@@ -1676,7 +1677,26 @@ $optimizations = @{
             }
         }
         
-        Write-Host "`n=== GPU Low Latency Mode Enabled! ===" -ForegroundColor Cyan
+        # Configure Windows Game Mode
+        $gameBarPath = "HKCU:\Software\Microsoft\GameBar"
+        if (!(Test-Path $gameBarPath)) {
+            New-Item -Path $gameBarPath -Force | Out-Null
+        }
+        Set-ItemProperty -Path $gameBarPath -Name "AutoGameModeEnabled" -Value 1 -Type DWord
+        Write-Host "✓ Windows Game Mode enabled" -ForegroundColor Yellow
+        
+        # Configure additional system profile settings
+        $sysProfilePath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile"
+        if (!(Test-Path $sysProfilePath)) {
+            New-Item -Path $sysProfilePath -Force | Out-Null
+        }
+        Set-ItemProperty -Path $sysProfilePath -Name "NetworkThrottlingIndex" -Value 0xffffffff -Type DWord
+        Set-ItemProperty -Path $sysProfilePath -Name "SystemResponsiveness" -Value 0x00000000 -Type DWord
+        Write-Host "✓ Network throttling disabled" -ForegroundColor Yellow
+        Write-Host "✓ System responsiveness optimized for gaming" -ForegroundColor Yellow
+        
+        Write-Host "`n=== GPU Low Latency Mode Enabled with Safe Settings! ===" -ForegroundColor Cyan
+        Write-Host "These settings improve gaming performance without risking system stability." -ForegroundColor Green
     }
 }
 
@@ -2002,6 +2022,431 @@ $optimizations = @{
         Write-Host "✓ Enhanced buffer and queue size" -ForegroundColor Yellow
         Write-Host "✓ Real-time thread priority" -ForegroundColor Yellow
         Write-Host "✓ Instant response time activated" -ForegroundColor Yellow
+        }
+    }
+"Disable Sticky Keys" = @{
+    content = "Disable Sticky Keys"
+    description = "Disables Sticky Keys and other accessibility keyboard shortcuts"
+    category = "Windows"
+    action = {
+        Write-Host "`nDisabling Sticky Keys and Accessibility Keyboard Features..." -ForegroundColor Cyan
+        
+        # Registry paths for accessibility features
+        $paths = @{
+            "HKCU:\Control Panel\Accessibility\StickyKeys" = @{
+                "Flags" = "506"                # Disable sticky keys
+            }
+            "HKCU:\Control Panel\Accessibility\ToggleKeys" = @{
+                "Flags" = "58"                 # Disable toggle keys
+            }
+            "HKCU:\Control Panel\Accessibility\Keyboard Response" = @{
+                "Flags" = "122"                # Disable filter keys
+            }
+            "HKCU:\Control Panel\Accessibility" = @{
+                "Sound on Activation" = 0      # Disable sound on activation
+            }
+            "HKCU:\Control Panel\Accessibility\MouseKeys" = @{
+                "Flags" = "0"                  # Disable mouse keys
+            }
+        }
+        
+        # Apply settings
+        foreach ($path in $paths.Keys) {
+            if (!(Test-Path $path)) {
+                New-Item -Path $path -Force | Out-Null
+                Write-Host "Created new registry key: $path" -ForegroundColor Yellow
+            }
+            
+            foreach ($setting in $paths[$path].GetEnumerator()) {
+                if ($setting.Value -is [string]) {
+                    Set-ItemProperty -Path $path -Name $setting.Key -Value $setting.Value -Type String -Force
+                } else {
+                    Set-ItemProperty -Path $path -Name $setting.Key -Value $setting.Value -Type DWord -Force
+                }
+            }
+        }
+        
+        Write-Host "Accessibility keyboard features successfully disabled!" -ForegroundColor Green
+        Write-Host "✓ Sticky Keys disabled" -ForegroundColor Yellow
+        Write-Host "✓ Toggle Keys disabled" -ForegroundColor Yellow
+        Write-Host "✓ Filter Keys disabled" -ForegroundColor Yellow
+        Write-Host "✓ Mouse Keys disabled" -ForegroundColor Yellow
+        Write-Host "✓ Keyboard shortcuts for accessibility features disabled" -ForegroundColor Yellow
+    }
+}
+
+"Enable End Task With Right Click" = @{
+    content = "Enable End Task With Right Click"
+    description = "Enables option to end task when right clicking a program in the taskbar"
+    category = "Windows"
+    action = {
+        Write-Host "`nEnabling End Task with Right Click on Taskbar..." -ForegroundColor Cyan
+        
+        # Define registry paths for different Windows versions
+        $win11Path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings"
+        $win10Path = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\TaskBand"
+        
+        # Windows 11 implementation
+        if (-not (Test-Path $win11Path)) {
+            New-Item -Path $win11Path -Force | Out-Null
+            Write-Host "Created new registry key for Windows 11 taskbar settings" -ForegroundColor Yellow
+        }
+        Set-ItemProperty -Path $win11Path -Name "TaskbarEndTask" -Value 1 -Type DWord -Force
+        
+        # Windows 10 implementation (for compatibility)
+        if (-not (Test-Path $win10Path)) {
+            New-Item -Path $win10Path -Force | Out-Null
+            Write-Host "Created new registry key for Windows 10 taskbar settings" -ForegroundColor Yellow
+        }
+        Set-ItemProperty -Path $win10Path -Name "AllowEndTask" -Value 1 -Type DWord -Force
+        
+        Write-Host "End Task with Right Click successfully enabled!" -ForegroundColor Green
+        Write-Host "✓ Right-click on taskbar apps to see End Task option" -ForegroundColor Yellow
+        Write-Host "✓ Quickly terminate unresponsive applications" -ForegroundColor Yellow
+        Write-Host "✓ Enhanced taskbar functionality activated" -ForegroundColor Yellow
+        Write-Host "Note: You may need to sign out and back in or restart Explorer for changes to take effect" -ForegroundColor Yellow
+    }
+}
+
+"Enable Dark Theme" = @{
+    content = "Enable Dark Theme"
+    description = "Activates system-wide dark mode for Windows and applications"
+    category = "Windows"
+    action = {
+        Write-Host "`nEnabling Dark Theme for Windows..." -ForegroundColor Cyan
+        
+        # Registry paths for dark theme settings
+        $paths = @{
+            "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" = @{
+                "AppsUseLightTheme" = 0       # Apps dark theme
+                "SystemUsesLightTheme" = 0    # System dark theme
+                "EnableTransparency" = 1      # Enable transparency effects
+            }
+            "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Accent" = @{
+                "AccentColorMenu" = 0xff3f3f3f    # Dark accent color
+            }
+            "HKCU:\Control Panel\Desktop" = @{
+                "AutoColorization" = 0            # Disable auto colorization
+            }
+            "HKCU:\Software\Microsoft\Windows\DWM" = @{
+                "ColorPrevalence" = 0             # Use dark title bars
+                "AccentColor" = 0xff3f3f3f        # Dark accent color
+                "ColorizationColor" = 0xc43f3f3f  # Dark colorization
+                "ColorizationAfterglow" = 0xc43f3f3f
+                "ColorizationColorBalance" = 0x00000059
+            }
+        }
+        
+        # Apply settings
+        foreach ($path in $paths.Keys) {
+            if (!(Test-Path $path)) {
+                New-Item -Path $path -Force | Out-Null
+                Write-Host "Created new registry key: $path" -ForegroundColor Yellow
+            }
+            
+            foreach ($setting in $paths[$path].GetEnumerator()) {
+                Set-ItemProperty -Path $path -Name $setting.Key -Value $setting.Value -Type DWord -Force
+            }
+        }
+        
+        # Additional Windows 11 specific settings
+        $win11Path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Accent"
+        if (Test-Path $win11Path) {
+            # Windows 11 accent data (dark theme)
+            $accentDataBytes = [byte[]](0x9B, 0x9A, 0x99, 0x00, 0x90, 0x90, 0x90, 0x00, 0x85, 0x85, 0x85, 0x00, 0x78, 0x78, 0x78, 0x00, 0x6D, 0x6D, 0x6D, 0x00, 0x60, 0x60, 0x60, 0x00, 0x54, 0x54, 0x54, 0x00, 0x48, 0x48, 0x48, 0x00)
+            Set-ItemProperty -Path $win11Path -Name "AccentPalette" -Value $accentDataBytes -Type Binary -Force
+        }
+        
+        # Force dark theme for UWP apps
+        $uwpPath = "HKCU:\Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppContainer\Storage\microsoft.microsoftedge_8wekyb3d8bbwe\MicrosoftEdge\Main"
+        if (!(Test-Path $uwpPath)) {
+            New-Item -Path $uwpPath -Force | Out-Null
+        }
+        Set-ItemProperty -Path $uwpPath -Name "Theme" -Value 1 -Type DWord -Force
+        
+        Write-Host "Dark Theme successfully enabled!" -ForegroundColor Green
+        Write-Host "✓ System-wide dark mode activated" -ForegroundColor Yellow
+        Write-Host "✓ Dark app theme applied" -ForegroundColor Yellow
+        Write-Host "✓ Dark accent colors configured" -ForegroundColor Yellow
+        Write-Host "✓ Enhanced visual experience optimized" -ForegroundColor Yellow
+    }
+}
+
+"Enable Edge Search Bar" = @{
+    content = "Enable Edge Search Bar"
+    description = "Adds Microsoft Edge search bar to the taskbar for quick web searches"
+    category = "Windows"
+    action = {
+        Write-Host "`nEnabling Microsoft Edge Search Bar..." -ForegroundColor Cyan
+        
+        # Registry paths for search settings
+        $paths = @{
+            "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" = @{
+                "BingSearchEnabled" = 1            # Enable web search
+                "CortanaConsent" = 1               # Enable search consent
+                "AllowSearchToUseLocation" = 1     # Allow location for relevant results
+                "SearchboxTaskbarMode" = 2         # Show search bar on taskbar (not just icon)
+            }
+        }
+        
+        # Windows 11 specific path
+        $win11SearchPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+        $win11SearchSetting = @{
+            "SearchboxTaskbarMode" = 2             # Show search bar on taskbar for Win11 (not just icon)
+        }
+        
+        # Apply settings
+        foreach ($path in $paths.Keys) {
+            if (!(Test-Path $path)) {
+                New-Item -Path $path -Force | Out-Null
+                Write-Host "Created new registry key: $path" -ForegroundColor Yellow
+            }
+            
+            foreach ($setting in $paths[$path].GetEnumerator()) {
+                Set-ItemProperty -Path $path -Name $setting.Key -Value $setting.Value -Type DWord -Force
+            }
+        }
+        
+        # Apply Windows 11 specific settings if the path exists
+        if (Test-Path $win11SearchPath) {
+            foreach ($setting in $win11SearchSetting.GetEnumerator()) {
+                Set-ItemProperty -Path $win11SearchPath -Name $setting.Key -Value $setting.Value -Type DWord -Force
+            }
+        }
+        
+        # Configure Edge as default search provider
+        $edgePath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer"
+        if (!(Test-Path $edgePath)) {
+            New-Item -Path $edgePath -Force | Out-Null
+        }
+        Set-ItemProperty -Path $edgePath -Name "DisableSearchBoxSuggestions" -Value 0 -Type DWord -Force
+        
+        # Enable web search in Start menu
+        $webSearchPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Search\Preferences"
+        if (!(Test-Path $webSearchPath)) {
+            New-Item -Path $webSearchPath -Force | Out-Null
+        }
+        Set-ItemProperty -Path $webSearchPath -Name "WebSearch" -Value 1 -Type DWord -Force
+        
+        Write-Host "Microsoft Edge Search Bar successfully enabled!" -ForegroundColor Green
+        Write-Host "✓ Search bar enabled on taskbar (not just icon)" -ForegroundColor Yellow
+        Write-Host "✓ Web search activated" -ForegroundColor Yellow
+        Write-Host "✓ Microsoft Edge integrated with search" -ForegroundColor Yellow
+        Write-Host "✓ Quick search functionality optimized" -ForegroundColor Yellow
+        }
+    }
+
+"Ritzy's Gaming Powerplan" = @{
+    content = "Ritzy's Gaming Powerplan"
+    description = "Creates and applies an optimized power plan for maximum gaming performance"
+    category = @("FPS", "Windows")
+    action = {
+        Write-Host "`nCreating and applying Ritzy's Gaming Powerplan..." -ForegroundColor Cyan
+        
+        try {
+            # Check if the plan already exists and delete it if found
+            $powerPlans = powercfg /list
+            $existingPlan = $powerPlans | Where-Object { $_ -match "Ritzy's Gaming Powerplan" }
+
+            if ($existingPlan) {
+                if ($existingPlan -match '([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12})') {
+                    $existingGuid = $matches[1]
+                    Write-Host "Found existing Ritzy's Gaming Powerplan with GUID: $existingGuid" -ForegroundColor Yellow
+                    Write-Host "Deleting existing plan to create a fresh version..." -ForegroundColor Yellow
+                    powercfg /delete $existingGuid
+                    Start-Sleep -Seconds 1  # Give system time to process the deletion
+                }
+            }
+            
+            # If plan doesn't exist, create it
+            if (-not $planExists) {
+                # Get the High Performance plan GUID
+                $highPerfPlan = $null
+                foreach ($line in $powerPlans) {
+                    if ($line -match "High performance") {
+                        $highPerfPlan = $line
+                        break
+                    }
+                }
+                
+                # If High Performance not found, try Balanced
+                if (-not $highPerfPlan) {
+                    foreach ($line in $powerPlans) {
+                        if ($line -match "Balanced") {
+                            $highPerfPlan = $line
+                            break
+                        }
+                    }
+                }
+                
+                if ($highPerfPlan) {
+                    $sourceGuidMatch = [regex]::Match($highPerfPlan, '([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12})')
+                    if ($sourceGuidMatch.Success) {
+                        $sourceGuid = $sourceGuidMatch.Groups[1].Value
+                        
+                        # Create a duplicate of the source plan
+                        Write-Host "Creating new power plan based on GUID: $sourceGuid" -ForegroundColor Yellow
+                        $duplicateOutput = powercfg /duplicate $sourceGuid
+                        
+                        if ($duplicateOutput -match '([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12})') {
+                            $planGuid = $matches[1]
+                            Write-Host "Created new power plan with GUID: $planGuid" -ForegroundColor Yellow
+                            
+                            # Rename the plan
+                            powercfg /changename $planGuid "Ritzy's Gaming Powerplan" "Ultimate power plan optimized for gaming performance with minimal latency and maximum responsiveness."
+                        } else {
+                            throw "Failed to extract GUID from duplicate command output"
+                        }
+                    } else {
+                        throw "Could not find source power plan GUID"
+                    }
+                } else {
+                    # Direct creation if no template found
+                    Write-Host "No template power plan found. Creating directly..." -ForegroundColor Yellow
+                    # Use the Ultimate Performance plan GUID if available
+                    powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61
+                    
+                    # Check if creation worked
+                    $newPlans = powercfg /list
+                    foreach ($line in $newPlans) {
+                        if ($line -match "Power Scheme GUID: ([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12})") {
+                            $possibleGuid = $matches[1]
+                            powercfg /changename $possibleGuid "Ritzy's Gaming Powerplan" "Ultimate power plan optimized for gaming performance."
+                            $planGuid = $possibleGuid
+                            break
+                        }
+                    }
+                    
+                    if (-not $planGuid) {
+                        throw "Failed to create power plan directly"
+                    }
+                }
+            }
+            
+            if ($planGuid) {
+                # Configure power settings
+                Write-Host "Configuring optimal power settings..." -ForegroundColor Yellow
+                
+                # Display settings - never turn off display
+                powercfg /setacvalueindex $planGuid sub_video VIDEOIDLE 0
+                
+                # Processor power management
+                powercfg /setacvalueindex $planGuid sub_processor PROCTHROTTLEMIN 100
+                powercfg /setacvalueindex $planGuid sub_processor PROCTHROTTLEMAX 100
+                
+                # Hard disk settings - never turn off disk
+                powercfg /setacvalueindex $planGuid sub_disk DISKIDLE 0
+                
+                # Sleep settings - disable all sleep
+                powercfg /setacvalueindex $planGuid sub_sleep STANDBYIDLE 0
+                powercfg /setacvalueindex $planGuid sub_sleep HYBRIDSLEEP 0
+                powercfg /setacvalueindex $planGuid sub_sleep HIBERNATEIDLE 0
+                
+                # Try to set advanced processor settings (safely)
+                $advancedSettings = @(
+                    @{subgroup = "sub_processor"; setting = "PERFINCPOL"; value = 2},           # Processor performance increase policy: Aggressive
+                    @{subgroup = "sub_processor"; setting = "PERFBOOSTMODE"; value = 2},        # System cooling policy: Active
+                    @{subgroup = "sub_processor"; setting = "PERFINCTHRESHOLD"; value = 10},    # Performance increase threshold: 10%
+                    @{subgroup = "sub_processor"; setting = "PERFDECTHRESHOLD"; value = 20},    # Performance decrease threshold: 20%
+                    @{subgroup = "sub_processor"; setting = "LATENCYHINTPERF"; value = 0},      # Latency sensitivity hint: Off (for max performance)
+                    @{subgroup = "sub_processor"; setting = "PERFAUTONOMOUS"; value = 1},       # Autonomous mode: On
+                    @{subgroup = "sub_processor"; setting = "PERFEPP"; value = 0},              # Energy efficient policy: Off
+                    @{subgroup = "sub_processor"; setting = "IDLESCALING"; value = 1},          # Processor idle state management: Enabled
+                    @{subgroup = "sub_processor"; setting = "CPMINCORES"; value = 100},         # Minimum processor cores: 100%
+                    @{subgroup = "sub_processor"; setting = "CPMAXCORES"; value = 100},         # Maximum processor cores: 100%
+                    @{subgroup = "sub_energysaver"; setting = "ESUSB"; value = 0},              # USB selective suspend: Disabled
+                    @{subgroup = "sub_pciexpress"; setting = "ASPM"; value = 0},                # PCI Express power management: Off
+                    @{subgroup = "sub_graphics"; setting = "GPUPREFERENCEPOLICY"; value = 2},   # GPU preference: High performance
+                    @{subgroup = "sub_buttons"; setting = "LIDACTION"; value = 0},              # Lid close action: Do nothing
+                    @{subgroup = "sub_buttons"; setting = "PBUTTONACTION"; value = 0},          # Power button action: Do nothing
+                    @{subgroup = "sub_buttons"; setting = "SBUTTONACTION"; value = 0}           # Sleep button action: Do nothing
+                )
+                
+                foreach ($setting in $advancedSettings) {
+                    try {
+                        powercfg /setacvalueindex $planGuid $setting.subgroup $setting.setting $setting.value
+                    } catch {
+                        Write-Host "Note: Could not set $($setting.setting) - may not be supported on this system" -ForegroundColor Yellow
+                    }
+                }
+                
+                # Set as active power plan
+                powercfg /setactive $planGuid
+                
+                # Make it persist across reboots
+                $activeSchemeRegPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes"
+                if (!(Test-Path $activeSchemeRegPath)) {
+                    New-Item -Path $activeSchemeRegPath -Force | Out-Null
+                }
+                Set-ItemProperty -Path $activeSchemeRegPath -Name "ActivePowerScheme" -Value $planGuid -Type String -Force
+                
+                # Disable Hibernation
+                powercfg /hibernate off
+                
+                Write-Host "Ritzy's Gaming Powerplan successfully created and activated!" -ForegroundColor Green
+                Write-Host "✓ Maximum processor performance enabled" -ForegroundColor Yellow
+                Write-Host "✓ Display and hard disk set to never turn off" -ForegroundColor Yellow
+                Write-Host "✓ Sleep and hibernation disabled" -ForegroundColor Yellow
+                Write-Host "✓ All processor cores running at maximum" -ForegroundColor Yellow
+                Write-Host "✓ USB and PCI Express power saving disabled" -ForegroundColor Yellow
+                Write-Host "✓ Power plan set to persist across system restarts" -ForegroundColor Yellow
+            } else {
+                throw "Failed to get a valid power plan GUID"
+            }
+        }
+        catch {
+            Write-Host "An error occurred: $_" -ForegroundColor Red
+            # Even if we had an error, let's try to create a basic version as fallback
+            try {
+                # Create a basic high performance plan
+                Write-Host "Attempting fallback method..." -ForegroundColor Yellow
+                
+                # Try to use the built-in high performance plan
+                powercfg /setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c
+                
+                # Get the active plan
+                $activePlanOutput = powercfg /getactivescheme
+                
+                if ($activePlanOutput -match '([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12})') {
+                    $activeGuid = $matches[1]
+                    
+                    # Rename and configure the active plan
+                    powercfg /changename $activeGuid "Ritzy's Gaming Powerplan" "Gaming power plan with high performance settings."
+                    
+                    # Set display and disk to never turn off
+                    powercfg /setacvalueindex $activeGuid sub_video VIDEOIDLE 0
+                    powercfg /setacvalueindex $activeGuid sub_disk DISKIDLE 0
+                    
+                    # Apply the changes
+                    powercfg /setactive $activeGuid
+                    
+                    Write-Host "Basic gaming power plan created and activated using fallback method." -ForegroundColor Green
+                    Write-Host "✓ High performance power plan activated" -ForegroundColor Yellow
+                    Write-Host "✓ Display and hard disk set to never turn off" -ForegroundColor Yellow
+                } else {
+                    # Last resort - just create a new plan
+                    powercfg -duplicatescheme SCHEME_BALANCED
+                    Start-Sleep -Seconds 1
+                    
+                    $finalPlans = powercfg /list
+                    $lastPlan = ($finalPlans -split "`n")[-2]
+                    
+                    if ($lastPlan -match '([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12})') {
+                        $lastGuid = $matches[1]
+                        powercfg /changename $lastGuid "Ritzy's Gaming Powerplan" "Basic gaming power plan."
+                        powercfg /setactive $lastGuid
+                        
+                        Write-Host "Created basic power plan as last resort." -ForegroundColor Yellow
+                    } else {
+                        Write-Host "All methods failed. Please create power plan manually." -ForegroundColor Red
+                    }
+                }
+            }
+            catch {
+                Write-Host "Fallback method failed: $_" -ForegroundColor Red
+                Write-Host "Please create power plan manually." -ForegroundColor Red
+                }
+            }
         }
     }
 }
@@ -2713,6 +3158,7 @@ if (-not $userAgreedToTOS) {
                         <Button x:Name="AllTweaksButton" Content="All" Style="{StaticResource ActionButtonStyle}" Width="70" Height="28" Margin="0,0,8,0"/>
                         <Button x:Name="FPSTweaksButton" Content="FPS" Style="{StaticResource ActionButtonStyle}" Width="70" Height="28" Margin="0,0,8,0"/>
                         <Button x:Name="LatencyTweaksButton" Content="Latency" Style="{StaticResource ActionButtonStyle}" Width="70" Height="28" Margin="0,0,8,0"/>
+                        <Button x:Name="WindowsTweaksButton" Content="Windows" Style="{StaticResource ActionButtonStyle}" Width="70" Height="28" Margin="0,0,8,0"/>                    
                     </StackPanel>
                         
                         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden" Margin="10">
@@ -2934,6 +3380,7 @@ $SearchBox = $window.FindName("SearchBox")
 $allTweaksButton = $window.FindName("AllTweaksButton")
 $fpsTweaksButton = $window.FindName("FPSTweaksButton")
 $latencyTweaksButton = $window.FindName("LatencyTweaksButton")
+$windowsTweaksButton = $window.FindName("WindowsTweaksButton")
 $tosOverlay = $window.FindName("TOSOverlay")
 $tosAgreeButton = $window.FindName("TOSAgreeButton")
 $consoleTab = $window.FindName("ConsoleTab")
@@ -3974,6 +4421,10 @@ $fpsTweaksButton.Add_Click({
 
 $latencyTweaksButton.Add_Click({
     FilterOptimizations "Latency"
+})
+
+$windowsTweaksButton.Add_Click({
+    FilterOptimizations "windows"
 })
 
 $homeTab.Add_Click({
