@@ -2203,12 +2203,13 @@ if (-not $userAgreedToTOS) {
     <Setter Property="FontSize" Value="14"/>
     <Setter Property="Height" Value="40"/>
     <Setter Property="Margin" Value="0,2"/>
+    <Setter Property="Cursor" Value="Hand"/>
     <Setter Property="Template">
         <Setter.Value>
             <ControlTemplate TargetType="Button">
                 <Grid>
-                    <Border x:Name="border" 
-                            Background="{TemplateBinding Background}" 
+                    <Border x:Name="border"
+                            Background="{TemplateBinding Background}"
                             CornerRadius="6"
                             Padding="16,0">
                         <Grid>
@@ -2216,13 +2217,13 @@ if (-not $userAgreedToTOS) {
                                 <ColumnDefinition Width="24"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <Path x:Name="icon" 
+                            <Path x:Name="icon"
                                   Data="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
                                   Fill="{TemplateBinding Foreground}"
                                   Width="18" Height="18"
                                   Stretch="Uniform"/>
                             <TextBlock Grid.Column="1"
-                                     Text="{TemplateBinding Content}" 
+                                     Text="{TemplateBinding Content}"
                                      Margin="12,0,0,0"
                                      VerticalAlignment="Center"/>
                         </Grid>
@@ -2239,41 +2240,11 @@ if (-not $userAgreedToTOS) {
                         <Setter TargetName="border" Property="Background" Value="{StaticResource ButtonHover}"/>
                         <Setter Property="Foreground" Value="White"/>
                     </Trigger>
-                    <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True">
+                    <DataTrigger Binding="{Binding IsActive, RelativeSource={RelativeSource Self}}" Value="True">
                         <Setter TargetName="border" Property="Background" Value="{StaticResource ButtonHover}"/>
                         <Setter Property="Foreground" Value="White"/>
                         <Setter TargetName="activeIndicator" Property="Opacity" Value="1"/>
                     </DataTrigger>
-                </ControlTemplate.Triggers>
-            </ControlTemplate>
-        </Setter.Value>
-    </Setter>
-</Style>
-
-            <!-- Style for the toggle switch -->
-<Style x:Key="ToggleSwitchStyle" TargetType="ToggleButton">
-    <Setter Property="Template">
-        <Setter.Value>
-            <ControlTemplate TargetType="ToggleButton">
-                <Border x:Name="Container" 
-                        Width="50" 
-                        Height="25" 
-                        CornerRadius="12.5"
-                        Background="#FF4444">
-                    <Border x:Name="Slider"
-                            Width="21" 
-                            Height="21" 
-                            CornerRadius="10.5"
-                            Background="White"
-                            HorizontalAlignment="Left"
-                            Margin="2,0,0,0"/>
-                </Border>
-                <ControlTemplate.Triggers>
-                    <Trigger Property="IsChecked" Value="True">
-                        <Setter TargetName="Container" Property="Background" Value="#4CAF50"/>
-                        <Setter TargetName="Slider" Property="HorizontalAlignment" Value="Right"/>
-                        <Setter TargetName="Slider" Property="Margin" Value="0,0,2,0"/>
-                    </Trigger>
                 </ControlTemplate.Triggers>
             </ControlTemplate>
         </Setter.Value>
@@ -2399,29 +2370,112 @@ if (-not $userAgreedToTOS) {
     <Setter Property="CornerRadius" Value="10"/>
 </Style>
 
-            <Style x:Key="TabButtonStyle" TargetType="Button">
-                <Setter Property="Background" Value="{DynamicResource ButtonBackground}"/>
-                <Setter Property="BorderThickness" Value="1"/>
-                <Setter Property="BorderBrush" Value="{DynamicResource ButtonBorder}"/>
-                <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
-                <Setter Property="FontSize" Value="14"/>
-                <Setter Property="Cursor" Value="Hand"/>
-                <Setter Property="Margin" Value="5,5,5,0"/>
-                <Setter Property="Template">
-                    <Setter.Value>
-                        <ControlTemplate TargetType="Button">
-                            <Border x:Name="border" 
-                                    Background="{TemplateBinding Background}"
-                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                    BorderThickness="{TemplateBinding BorderThickness}"
-                                    CornerRadius="5"
-                                    Padding="10,5">
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
-                        </ControlTemplate>
-                    </Setter.Value>
-                </Setter>
-            </Style>
+        <!-- Tab and navigation button animations -->
+<Storyboard x:Key="TabHighlightAnimation">
+    <ColorAnimation 
+        Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+        To="#007ACC" 
+        Duration="0:0:0.2"/>
+</Storyboard>
+
+<!-- Option hover animations -->
+<Storyboard x:Key="OptionHoverIn">
+    <DoubleAnimation 
+        Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+        To="1.03" 
+        Duration="0:0:0.1"/>
+    <DoubleAnimation 
+        Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+        To="1.03" 
+        Duration="0:0:0.1"/>
+</Storyboard>
+
+<Storyboard x:Key="OptionHoverOut">
+    <DoubleAnimation 
+        Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+        To="1.0" 
+        Duration="0:0:0.1"/>
+    <DoubleAnimation 
+        Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+        To="1.0" 
+        Duration="0:0:0.1"/>
+</Storyboard>
+
+<!-- Style for category panels with hover animation -->
+<Style x:Key="CategoryPanelStyle" TargetType="Border">
+    <Setter Property="Background" Value="{DynamicResource ButtonBackground}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource ButtonBorder}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="10"/>
+    <Setter Property="Margin" Value="10"/>
+    <Setter Property="Padding" Value="15"/>
+    <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+    <Setter Property="RenderTransform">
+        <Setter.Value>
+            <ScaleTransform ScaleX="1" ScaleY="1"/>
+        </Setter.Value>
+    </Setter>
+    <Style.Triggers>
+        <EventTrigger RoutedEvent="MouseEnter">
+            <BeginStoryboard Storyboard="{StaticResource OptionHoverIn}"/>
+        </EventTrigger>
+        <EventTrigger RoutedEvent="MouseLeave">
+            <BeginStoryboard Storyboard="{StaticResource OptionHoverOut}"/>
+        </EventTrigger>
+    </Style.Triggers>
+</Style>
+
+<Style x:Key="ToggleSwitchStyle" TargetType="ToggleButton">
+    <Setter Property="Template">
+        <Setter.Value>
+            <ControlTemplate TargetType="ToggleButton">
+                <Border x:Name="Container"
+                     Width="50"
+                     Height="25"
+                     CornerRadius="12.5"
+                    Background="#FF4444">
+                    <Border x:Name="Slider"
+                            Width="21"
+                             Height="21"
+                             CornerRadius="10.5"
+                            Background="White"
+                            HorizontalAlignment="Left"
+                            Margin="2,0,0,0"/>
+                </Border>
+                <ControlTemplate.Triggers>
+                    <Trigger Property="IsChecked" Value="True">
+                        <Setter TargetName="Container" Property="Background" Value="#4CAF50"/>
+                        <Setter TargetName="Slider" Property="HorizontalAlignment" Value="Right"/>
+                        <Setter TargetName="Slider" Property="Margin" Value="0,0,2,0"/>
+                        <!-- Add animation for smooth transition -->
+                        <Trigger.EnterActions>
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <ColorAnimation 
+                                        Storyboard.TargetName="Container" 
+                                        Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)" 
+                                        To="#4CAF50" 
+                                        Duration="0:0:0.2"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </Trigger.EnterActions>
+                        <Trigger.ExitActions>
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <ColorAnimation 
+                                        Storyboard.TargetName="Container" 
+                                        Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)" 
+                                        To="#FF4444" 
+                                        Duration="0:0:0.2"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </Trigger.ExitActions>
+                    </Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate>
+        </Setter.Value>
+    </Setter>
+</Style>
         </ResourceDictionary>
     </Window.Resources>
     <Border CornerRadius="12" Background="{DynamicResource WindowBackground}">
@@ -2442,6 +2496,11 @@ if (-not $userAgreedToTOS) {
                     </StackPanel>
 
                     <StackPanel>
+                        <Button x:Name="HomeTab"
+                                Style="{StaticResource NavButtonStyle}"
+                                Content="Home"
+                                Tag="M3 13h1v7c0 1.103.897 2 2 2h12c1.103 0 2-.897 2-2v-7h1a1 1 0 0 0 .707-1.707l-9-9a.999.999 0 0 0-1.414 0l-9 9A1 1 0 0 0 3 13zm9-8.586l6 6V20H6v-9.586l6-6z"/>
+
                         <Button x:Name="AppsTab" 
                                 Style="{StaticResource NavButtonStyle}"
                                 Content="Apps"
@@ -2546,6 +2605,15 @@ if (-not $userAgreedToTOS) {
                     Width="30" Height="20"
                     Style="{StaticResource WindowButtonStyle}"/>
         </StackPanel>
+
+                            <!-- Home Content -->
+                <Grid x:Name="HomeContent" Visibility="Collapsed">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20">
+                        <StackPanel Margin="0,0,0,20">
+                            <!-- Home content will be added programmatically -->
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
 
                             <!-- Apps Content -->
                 <Grid x:Name="AppsContent" Visibility="Visible" Margin="0,50,0,-10">
@@ -2798,9 +2866,6 @@ function Hide-PowerShellConsole {
     [Console.Window]::ShowWindow($consolePtr, 0) # 0 = SW_HIDE
 }
 
-# Hide the PowerShell console window
-Hide-PowerShellConsole
-
 # Create a custom output stream writer to capture console output
 $outputStream = New-Object System.IO.StringWriter
 $errorStream = New-Object System.IO.StringWriter
@@ -2810,8 +2875,8 @@ function Write-ToConsole {
     param([string]$Text, [string]$Color = "#CCCCCC")
     
     $window.Dispatcher.Invoke([Action]{
-        $ConsoleOutput.AppendText("$Text`r`n")
-        $ConsoleScroller.ScrollToEnd()
+        $consoleOutput.AppendText("$Text`r`n")
+        $consoleScroller.ScrollToEnd()
     })
 }
 
@@ -2876,6 +2941,8 @@ $consoleView = $window.FindName("ConsoleView")
 $consoleOutput = $window.FindName("ConsoleOutput")
 $consoleScroller = $window.FindName("ConsoleScroller")
 $clearConsoleButton = $window.FindName("ClearConsoleButton")
+$homeTab = $window.FindName("HomeTab")
+$homeContent = $window.FindName("HomeContent")
 
 # Create and configure SearchBox
 $SearchBox.Height = 30
@@ -3226,11 +3293,39 @@ $categoriesPanel.Children.Add($appsWrapPanel)
 $optimizationsPanel.Children.Add($optimizationsWrapPanel)
 $cleanPanel.Children.Add($cleanupWrapPanel)
 
-# Function to show a specific tab
+$panelsToFix = @($categoriesPanel, $optimizationsPanel, $cleanPanel, $debloatPanel)
+
+foreach ($panel in $panelsToFix) {
+    if ($panel -and $panel.Children.Count -gt 0) {
+        $wrapPanel = $panel.Children[0]
+        
+        foreach ($border in $wrapPanel.Children) {
+            # Make sure the border can receive mouse events
+            $border.IsHitTestVisible = $true
+            
+            # Apply the CategoryPanelStyle to enable animations
+            $border.Style = $window.Resources["CategoryPanelStyle"]
+            
+            # Make sure the child elements don't block mouse events
+            if ($border.Child -is [System.Windows.Controls.StackPanel]) {
+                $border.Child.Background = [System.Windows.Media.Brushes]::Transparent
+            }
+            
+            # Add a name to make it easier to reference in animations
+            if (-not $border.Name) {
+                $uniqueName = "CategoryItem_" + [Guid]::NewGuid().ToString().Substring(0, 8)
+                $border.Name = $uniqueName
+            }
+        }
+    }
+}
+
+# Modify the Show-Tab function to handle home tab
 function Show-Tab {
     param([string]$TabName)
     
     # Hide all tab content
+    $homeContent.Visibility = "Collapsed"
     $appsContent.Visibility = "Collapsed"
     $optimizeContent.Visibility = "Collapsed"
     $infoContent.Visibility = "Collapsed"
@@ -3242,6 +3337,7 @@ function Show-Tab {
     $window.FindName($TabName).Visibility = "Visible"
     
     # Update button styles to show which tab is selected
+    $homeTab.IsSelected = $false
     $appsTab.IsSelected = $false
     $optimizeTab.IsSelected = $false
     $cleanTab.IsSelected = $false
@@ -3251,31 +3347,542 @@ function Show-Tab {
     
     # Set the selected tab and control search box visibility
     switch ($TabName) {
-        "AppsContent" { 
-            $appsTab.IsSelected = $true 
+        "HomeContent" {
+            $homeTab.IsSelected = $true
+            $SearchBox.Visibility = "Collapsed"
+            Update-HomeTabContent  # Update home content each time the tab is shown
+        }
+        "AppsContent" {
+            $appsTab.IsSelected = $true
             $SearchBox.Visibility = "Visible"
         }
-        "OptimizeContent" { 
-            $optimizeTab.IsSelected = $true 
+        "OptimizeContent" {
+            $optimizeTab.IsSelected = $true
             $SearchBox.Visibility = "Visible"
         }
-        "CleanContent" { 
-            $cleanTab.IsSelected = $true 
+        "CleanContent" {
+            $cleanTab.IsSelected = $true
             $SearchBox.Visibility = "Visible"
         }
-        "InfoContent" { 
-            $infoTab.IsSelected = $true 
+        "InfoContent" {
+            $infoTab.IsSelected = $true
             $SearchBox.Visibility = "Visible"
         }
-        "DebloatContent" { 
-            $debloatTab.IsSelected = $true 
+        "DebloatContent" {
+            $debloatTab.IsSelected = $true
             $SearchBox.Visibility = "Visible"
         }
-        "ConsoleView" { 
-            $consoleTab.IsSelected = $true 
+        "ConsoleView" {
+            $consoleTab.IsSelected = $true
             $SearchBox.Visibility = "Collapsed"  # Hide search box in console tab
         }
     }
+}
+
+# Function to update the home tab content
+function Update-HomeTabContent {
+    # Clear existing content first to ensure we start fresh
+    $homeContent.Children.Clear()
+    
+    # Create scroll viewer for the content
+    $scrollViewer = New-Object Windows.Controls.ScrollViewer
+    $scrollViewer.VerticalScrollBarVisibility = "Auto"
+    $scrollViewer.HorizontalScrollBarVisibility = "Disabled"
+    
+    # Create main container with less vertical margin to reduce scrolling
+    $homeMainPanel = New-Object Windows.Controls.StackPanel
+    $homeMainPanel.Margin = "20,10,20,10"
+    
+    # Welcome section - more compact
+    $welcomeSection = New-Object Windows.Controls.Border
+    $welcomeSection.Background = $window.Resources["ButtonBackground"]
+    $welcomeSection.BorderBrush = $window.Resources["ButtonBorder"]
+    $welcomeSection.BorderThickness = "1"
+    $welcomeSection.CornerRadius = "5"  # More rectangular corners
+    $welcomeSection.Padding = "15"      # Less padding
+    $welcomeSection.Margin = "0,0,0,10" # Less margin
+    
+    $welcomeContent = New-Object Windows.Controls.StackPanel
+    
+    $welcomeTitle = New-Object Windows.Controls.TextBlock
+    $welcomeTitle.Text = "Welcome to Ritzy Optimizer"
+    $welcomeTitle.FontSize = 22         # Slightly smaller font
+    $welcomeTitle.FontWeight = "SemiBold"
+    $welcomeTitle.Foreground = $window.Resources["TextColor"]
+    
+    $separator = New-Object Windows.Controls.Separator
+    $separator.Margin = "0,5,0,5"       # Less margin
+    $separator.Background = $window.Resources["TextColor"]
+    $separator.Opacity = 0.1
+    
+    $welcomeDesc = New-Object Windows.Controls.TextBlock
+    $welcomeDesc.Text = "This tool helps you optimize your Windows system, install applications, clean up unnecessary files, and remove bloatware."
+    $welcomeDesc.TextWrapping = "Wrap"
+    $welcomeDesc.Foreground = $window.Resources["TextColor"]
+    $welcomeDesc.FontSize = 13          # Slightly smaller font
+    $welcomeDesc.LineHeight = 18        # Less line height
+    
+    $welcomeContent.Children.Add($welcomeTitle)
+    $welcomeContent.Children.Add($separator)
+    $welcomeContent.Children.Add($welcomeDesc)
+    $welcomeSection.Child = $welcomeContent
+    
+    # System info section
+    $infoSection = New-Object Windows.Controls.Border
+    $infoSection.Background = $window.Resources["ButtonBackground"]
+    $infoSection.BorderBrush = $window.Resources["ButtonBorder"]
+    $infoSection.BorderThickness = "1"
+    $infoSection.CornerRadius = "5"     # More rectangular corners
+    $infoSection.Padding = "15"         # Less padding
+    $infoSection.Margin = "0,0,0,10"    # Less margin
+    
+    $infoContent = New-Object Windows.Controls.StackPanel
+    
+    $infoTitle = New-Object Windows.Controls.TextBlock
+    $infoTitle.Text = "System Information"
+    $infoTitle.FontSize = 22            # Slightly smaller font
+    $infoTitle.FontWeight = "SemiBold"
+    $infoTitle.Foreground = $window.Resources["TextColor"]
+    
+    $infoSeparator = New-Object Windows.Controls.Separator
+    $infoSeparator.Margin = "0,5,0,5"   # Less margin
+    $infoSeparator.Background = $window.Resources["TextColor"]
+    $infoSeparator.Opacity = 0.1
+    
+    $infoContent.Children.Add($infoTitle)
+    $infoContent.Children.Add($infoSeparator)
+    
+    # System info items
+    $infoDynamicContent = New-Object Windows.Controls.StackPanel
+    
+    # Update system info
+    try {
+        $osInfo = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
+        $cpuInfo = Get-CimInstance Win32_Processor -ErrorAction Stop
+        $memoryInfo = Get-CimInstance Win32_ComputerSystem -ErrorAction Stop
+        $diskInfo = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'" -ErrorAction Stop
+        
+        $infoItems = @(
+            @{ Name = "OS Version"; Value = "$($osInfo.Caption)" },
+            @{ Name = "CPU"; Value = $cpuInfo.Name },
+            @{ Name = "Total Memory"; Value = "$([math]::Round($memoryInfo.TotalPhysicalMemory / 1GB, 2)) GB" },
+            @{ Name = "Free Disk Space"; Value = "$([math]::Round($diskInfo.FreeSpace / 1GB, 2)) GB of $([math]::Round($diskInfo.Size / 1GB, 2)) GB" }
+        )
+        
+        foreach ($item in $infoItems) {
+            $itemPanel = New-Object Windows.Controls.StackPanel
+            $itemPanel.Orientation = "Horizontal"
+            $itemPanel.Margin = "0,3,0,3"  # Less margin
+            
+            $nameBlock = New-Object Windows.Controls.TextBlock
+            $nameBlock.Text = "$($item.Name): "
+            $nameBlock.FontWeight = "SemiBold"
+            $nameBlock.Width = 150
+            $nameBlock.Foreground = $window.Resources["TextColor"]
+            $nameBlock.FontSize = 13       # Slightly smaller font
+            
+            $valueBlock = New-Object Windows.Controls.TextBlock
+            $valueBlock.Text = $item.Value
+            $valueBlock.Foreground = $window.Resources["TextColor"]
+            $valueBlock.FontSize = 13      # Slightly smaller font
+            
+            $itemPanel.Children.Add($nameBlock)
+            $itemPanel.Children.Add($valueBlock)
+            
+            $infoDynamicContent.Children.Add($itemPanel)
+        }
+    }
+    catch {
+        $errorText = New-Object Windows.Controls.TextBlock
+        $errorText.Text = "Could not retrieve system information."
+        $errorText.Foreground = $window.Resources["TextColor"]
+        $errorText.FontSize = 13
+        $infoDynamicContent.Children.Add($errorText)
+    }
+    
+    $infoContent.Children.Add($infoDynamicContent)
+    $infoSection.Child = $infoContent
+    
+# Performance section
+$perfSection = New-Object Windows.Controls.Border
+$perfSection.Background = $window.Resources["ButtonBackground"]
+$perfSection.BorderBrush = $window.Resources["ButtonBorder"]
+$perfSection.BorderThickness = "1"
+$perfSection.CornerRadius = "5"
+$perfSection.Padding = "15"
+$perfSection.Margin = "0,0,0,10"
+
+$perfContent = New-Object Windows.Controls.StackPanel
+
+$perfTitle = New-Object Windows.Controls.TextBlock
+$perfTitle.Text = "Performance Metrics"
+$perfTitle.FontSize = 22
+$perfTitle.FontWeight = "SemiBold"
+$perfTitle.Foreground = $window.Resources["TextColor"]
+
+$perfSeparator = New-Object Windows.Controls.Separator
+$perfSeparator.Margin = "0,5,0,5"
+$perfSeparator.Background = $window.Resources["TextColor"]
+$perfSeparator.Opacity = 0.1
+
+$perfContent.Children.Add($perfTitle)
+$perfContent.Children.Add($perfSeparator)
+
+# Performance metrics
+$perfDynamicContent = New-Object Windows.Controls.StackPanel
+
+# Update performance metrics
+try {
+    # Get CPU usage - EXACT match with Task Manager
+    $cpuLoad = 0
+    try {
+        # This is the exact counter Task Manager uses for CPU
+        $cpuData = Get-CimInstance Win32_PerfFormattedData_PerfOS_Processor -Filter "Name='_Total'" -ErrorAction Stop
+        $cpuLoad = [double]$cpuData.PercentProcessorTime
+    } 
+    catch {
+        # Fallback only if the primary method fails
+        try {
+            $cpuCounter = Get-Counter '\Processor(_Total)\% Processor Time' -ErrorAction Stop
+            $cpuLoad = $cpuCounter.CounterSamples[0].CookedValue
+        }
+        catch {
+            $cpuLoad = 0
+        }
+    }
+
+    # Get memory usage - EXACT match with Task Manager
+    $memoryUsed = 0
+    try {
+        # Get the exact memory metrics Task Manager uses
+        $operatingSystem = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
+        $totalMemoryKB = $operatingSystem.TotalVisibleMemorySize
+        $freeMemoryKB = $operatingSystem.FreePhysicalMemory
+        
+        # Calculate memory usage percentage exactly as Task Manager does
+        if ($totalMemoryKB -gt 0) {
+            $usedMemoryKB = $totalMemoryKB - $freeMemoryKB
+            $memoryUsed = ($usedMemoryKB / $totalMemoryKB) * 100
+        }
+    }
+    catch {
+        # Fallback only if the primary method fails
+        try {
+            $memoryCounter = Get-Counter '\Memory\% Committed Bytes In Use' -ErrorAction Stop
+            $memoryUsed = $memoryCounter.CounterSamples[0].CookedValue
+        }
+        catch {
+            $memoryUsed = 0
+        }
+    }
+
+    # Get disk activity - EXACT match with Task Manager
+    $diskActivity = 0
+    try {
+        # Task Manager uses a combination of these counters for disk activity
+        $diskData = Get-CimInstance Win32_PerfFormattedData_PerfDisk_PhysicalDisk -Filter "Name='_Total'" -ErrorAction Stop
+        
+        # Calculate disk activity as Task Manager does (combines read and write activity)
+        $diskBusy = [double]$diskData.PercentDiskTime
+        $diskActivity = $diskBusy
+        
+        # If disk busy time is 0, try to calculate from disk read/write time
+        if ($diskActivity -eq 0) {
+            $diskReadTime = [double]$diskData.PercentDiskReadTime
+            $diskWriteTime = [double]$diskData.PercentDiskWriteTime
+            
+            # Task Manager shows the higher of read/write or combined value
+            $diskActivity = [Math]::Max($diskReadTime, $diskWriteTime)
+        }
+    }
+    catch {
+        # Fallback to standard counter if CIM method fails
+        try {
+            $diskCounter = Get-Counter '\PhysicalDisk(_Total)\% Disk Time' -ErrorAction Stop
+            $diskActivity = $diskCounter.CounterSamples[0].CookedValue
+        }
+        catch {
+            $diskActivity = 0
+        }
+    }
+
+    # Ensure values are within valid range
+    $cpuLoad = [Math]::Max(0, [Math]::Min(100, $cpuLoad))
+    $memoryUsed = [Math]::Max(0, [Math]::Min(100, $memoryUsed))
+    $diskActivity = [Math]::Max(0, [Math]::Min(100, $diskActivity))
+
+    # Get number of running services
+    $runningServices = 0
+    try {
+        $runningServices = (Get-Service | Where-Object {$_.Status -eq "Running"}).Count
+    } catch {
+        $runningServices = 0
+    }
+    
+    # Create a clean table-like layout
+    $perfTable = New-Object Windows.Controls.Grid
+    $perfTable.Margin = "0,5,0,0"
+    
+    # Add columns: Label, Value, Indicator
+    $col1 = New-Object Windows.Controls.ColumnDefinition  # Label
+    $col1.Width = New-Object Windows.GridLength(150)
+    $col2 = New-Object Windows.Controls.ColumnDefinition  # Value
+    $col2.Width = New-Object Windows.GridLength(80)
+    $col3 = New-Object Windows.Controls.ColumnDefinition  # Indicator
+    $perfTable.ColumnDefinitions.Add($col1)
+    $perfTable.ColumnDefinitions.Add($col2)
+    $perfTable.ColumnDefinitions.Add($col3)
+    
+    # Add rows for each metric
+    for ($i = 0; $i -lt 4; $i++) {
+        $row = New-Object Windows.Controls.RowDefinition
+        $row.Height = New-Object Windows.GridLength(30)
+        $perfTable.RowDefinitions.Add($row)
+    }
+    
+    # Define metrics
+    $metrics = @(
+        @{ Name = "CPU Usage"; Value = "$([math]::Round($cpuLoad, 1))%"; Percent = $cpuLoad },
+        @{ Name = "Memory Usage"; Value = "$([math]::Round($memoryUsed, 1))%"; Percent = $memoryUsed },
+        @{ Name = "Disk Activity"; Value = "$([math]::Round($diskActivity, 1))%"; Percent = $diskActivity },
+        @{ Name = "Running Services"; Value = $runningServices; Percent = 0 }
+    )
+    
+    # Add metrics to the grid
+    for ($i = 0; $i -lt $metrics.Count; $i++) {
+        $metric = $metrics[$i]
+        
+        # Label
+        $nameBlock = New-Object Windows.Controls.TextBlock
+        $nameBlock.Text = $metric.Name
+        $nameBlock.FontWeight = "SemiBold"
+        $nameBlock.Foreground = $window.Resources["TextColor"]
+        $nameBlock.FontSize = 13
+        $nameBlock.VerticalAlignment = "Center"
+        [Windows.Controls.Grid]::SetRow($nameBlock, $i)
+        [Windows.Controls.Grid]::SetColumn($nameBlock, 0)
+        $perfTable.Children.Add($nameBlock)
+        
+        # Value
+        $valueBlock = New-Object Windows.Controls.TextBlock
+        $valueBlock.Text = $metric.Value
+        $valueBlock.Foreground = $window.Resources["TextColor"]
+        $valueBlock.FontSize = 13
+        $valueBlock.VerticalAlignment = "Center"
+        $valueBlock.HorizontalAlignment = "Right"
+        $valueBlock.Margin = "0,0,10,0"
+        [Windows.Controls.Grid]::SetRow($valueBlock, $i)
+        [Windows.Controls.Grid]::SetColumn($valueBlock, 1)
+        $perfTable.Children.Add($valueBlock)
+        
+        # Only add indicators for percentage-based metrics (not for services count)
+        if ($i -lt 3) {
+            # Create a cleaner indicator
+            $indicatorPanel = New-Object Windows.Controls.StackPanel
+            $indicatorPanel.Orientation = "Horizontal"
+            $indicatorPanel.VerticalAlignment = "Center"
+            
+            # Create 10 small blocks for the indicator
+            $percentValue = [math]::Min([math]::Max([math]::Round($metric.Percent / 10), 0), 10)
+            
+            for ($j = 0; $j -lt 10; $j++) {
+                $block = New-Object Windows.Controls.Border
+                $block.Width = 8
+                $block.Height = 12
+                $block.Margin = "1,0,1,0"
+                $block.CornerRadius = "1"
+                
+                # Determine color based on index and value
+                if ($j -lt $percentValue) {
+                    if ($j -lt 6) {
+                        $block.Background = New-Object Windows.Media.SolidColorBrush([Windows.Media.Color]::FromRgb(75, 175, 80))  # Green
+                    } elseif ($j -lt 8) {
+                        $block.Background = New-Object Windows.Media.SolidColorBrush([Windows.Media.Color]::FromRgb(255, 193, 7))  # Yellow
+                    } else {
+                        $block.Background = New-Object Windows.Media.SolidColorBrush([Windows.Media.Color]::FromRgb(244, 67, 54))  # Red
+                    }
+                } else {
+                    $block.Background = New-Object Windows.Media.SolidColorBrush([Windows.Media.Color]::FromRgb(100, 100, 100))  # Gray
+                    $block.Opacity = 0.3
+                }
+                
+                $indicatorPanel.Children.Add($block)
+            }
+            
+            [Windows.Controls.Grid]::SetRow($indicatorPanel, $i)
+            [Windows.Controls.Grid]::SetColumn($indicatorPanel, 2)
+            $perfTable.Children.Add($indicatorPanel)
+        }
+    }
+    
+    $perfDynamicContent.Children.Add($perfTable)
+}
+catch {
+    $errorText = New-Object Windows.Controls.TextBlock
+    $errorText.Text = "Could not retrieve performance metrics: $($_.Exception.Message)"
+    $errorText.Foreground = $window.Resources["TextColor"]
+    $errorText.FontSize = 13
+    $errorText.TextWrapping = "Wrap"
+    $perfDynamicContent.Children.Add($errorText)
+}
+
+$perfContent.Children.Add($perfDynamicContent)
+$perfSection.Child = $perfContent
+    
+    # Network section
+    $networkSection = New-Object Windows.Controls.Border
+    $networkSection.Background = $window.Resources["ButtonBackground"]
+    $networkSection.BorderBrush = $window.Resources["ButtonBorder"]
+    $networkSection.BorderThickness = "1"
+    $networkSection.CornerRadius = "5"     # More rectangular corners
+    $networkSection.Padding = "15"         # Less padding
+    
+    $networkContent = New-Object Windows.Controls.StackPanel
+    
+    $networkTitle = New-Object Windows.Controls.TextBlock
+    $networkTitle.Text = "Network Information"
+    $networkTitle.FontSize = 22            # Slightly smaller font
+    $networkTitle.FontWeight = "SemiBold"
+    $networkTitle.Foreground = $window.Resources["TextColor"]
+    
+    $networkSeparator = New-Object Windows.Controls.Separator
+    $networkSeparator.Margin = "0,5,0,5"   # Less margin
+    $networkSeparator.Background = $window.Resources["TextColor"]
+    $networkSeparator.Opacity = 0.1
+    
+    $networkContent.Children.Add($networkTitle)
+    $networkContent.Children.Add($networkSeparator)
+    
+    # Network information
+    $networkDynamicContent = New-Object Windows.Controls.StackPanel
+    
+    # Update network information - removed IP and MAC address
+    try {
+        # Get network adapter information
+        $networkAdapters = Get-NetAdapter | Where-Object { $_.Status -eq "Up" } | Select-Object -First 3
+        
+        if ($networkAdapters.Count -eq 0) {
+            $noNetworkText = New-Object Windows.Controls.TextBlock
+            $noNetworkText.Text = "No active network connections found."
+            $noNetworkText.Foreground = $window.Resources["TextColor"]
+            $noNetworkText.FontSize = 13
+            $networkDynamicContent.Children.Add($noNetworkText)
+        }
+        else {
+            foreach ($adapter in $networkAdapters) {
+                # Create adapter section
+                $adapterPanel = New-Object Windows.Controls.StackPanel
+                $adapterPanel.Margin = "0,0,0,10"  # Less margin
+                
+                $adapterName = New-Object Windows.Controls.TextBlock
+                $adapterName.Text = $adapter.Name
+                $adapterName.FontWeight = "SemiBold"
+                $adapterName.Foreground = $window.Resources["TextColor"]
+                $adapterName.FontSize = 14
+                $adapterName.Margin = "0,0,0,3"  # Less margin
+                $adapterPanel.Children.Add($adapterName)
+                
+                # Add adapter details - removed IP and MAC address
+                $detailsItems = @(
+                    @{ Name = "Interface"; Value = $adapter.InterfaceDescription },
+                    @{ Name = "Status"; Value = $adapter.Status },
+                    @{ Name = "Speed"; Value = if ($adapter.LinkSpeed) { $adapter.LinkSpeed } else { "Unknown" } }
+                )
+                
+                foreach ($item in $detailsItems) {
+                    $itemPanel = New-Object Windows.Controls.StackPanel
+                    $itemPanel.Orientation = "Horizontal"
+                    $itemPanel.Margin = "10,2,0,2"
+                    
+                    $nameBlock = New-Object Windows.Controls.TextBlock
+                    $nameBlock.Text = "$($item.Name): "
+                    $nameBlock.FontWeight = "SemiBold"
+                    $nameBlock.Width = 80  # Smaller width
+                    $nameBlock.Foreground = $window.Resources["TextColor"]
+                    $nameBlock.FontSize = 13  # Smaller font
+                    
+                    $valueBlock = New-Object Windows.Controls.TextBlock
+                    $valueBlock.Text = $item.Value
+                    $valueBlock.Foreground = $window.Resources["TextColor"]
+                    $valueBlock.FontSize = 13  # Smaller font
+                    $valueBlock.TextWrapping = "Wrap"
+                    
+                    $itemPanel.Children.Add($nameBlock)
+                    $itemPanel.Children.Add($valueBlock)
+                    
+                    $adapterPanel.Children.Add($itemPanel)
+                }
+                
+                $networkDynamicContent.Children.Add($adapterPanel)
+            }
+        }
+    }
+    catch {
+        $errorText = New-Object Windows.Controls.TextBlock
+        $errorText.Text = "Could not retrieve network information."
+        $errorText.Foreground = $window.Resources["TextColor"]
+        $errorText.FontSize = 13
+        $networkDynamicContent.Children.Add($errorText)
+    }
+    
+    $networkContent.Children.Add($networkDynamicContent)
+    $networkSection.Child = $networkContent
+    
+    # Create a grid layout for better organization with less scrolling
+    $gridPanel = New-Object Windows.Controls.Grid
+    $gridPanel.Margin = "0,0,0,0"
+    
+    # Define grid rows
+    $row1 = New-Object Windows.Controls.RowDefinition
+    $row1.Height = New-Object Windows.GridLength(Auto)
+    $row2 = New-Object Windows.Controls.RowDefinition
+    $row2.Height = New-Object Windows.GridLength(Auto)
+    $row3 = New-Object Windows.Controls.RowDefinition
+    $row3.Height = New-Object Windows.GridLength(Auto)
+    $gridPanel.RowDefinitions.Add($row1)
+    $gridPanel.RowDefinitions.Add($row2)
+    $gridPanel.RowDefinitions.Add($row3)
+    
+    # Add welcome section to grid
+    [Windows.Controls.Grid]::SetRow($welcomeSection, 0)
+    $gridPanel.Children.Add($welcomeSection)
+    
+    # Create a horizontal panel for info and performance
+    $infoAndPerfPanel = New-Object Windows.Controls.Grid
+    $infoAndPerfPanel.Margin = "0,10,0,10"
+    
+    # Define columns for the horizontal panel
+    $col1 = New-Object Windows.Controls.ColumnDefinition
+    $col2 = New-Object Windows.Controls.ColumnDefinition
+    $infoAndPerfPanel.ColumnDefinitions.Add($col1)
+    $infoAndPerfPanel.ColumnDefinitions.Add($col2)
+    
+    # Add info section to the left column
+    $infoSection.Margin = "0,0,5,0"  # Add right margin
+    [Windows.Controls.Grid]::SetColumn($infoSection, 0)
+    $infoAndPerfPanel.Children.Add($infoSection)
+    
+    # Add performance section to the right column
+    $perfSection.Margin = "5,0,0,0"  # Add left margin
+    [Windows.Controls.Grid]::SetColumn($perfSection, 1)
+    $infoAndPerfPanel.Children.Add($perfSection)
+    
+    # Add the horizontal panel to the main grid
+    [Windows.Controls.Grid]::SetRow($infoAndPerfPanel, 1)
+    $gridPanel.Children.Add($infoAndPerfPanel)
+    
+    # Add network section to grid
+    [Windows.Controls.Grid]::SetRow($networkSection, 2)
+    $gridPanel.Children.Add($networkSection)
+    
+    # Add grid panel to main panel
+    $homeMainPanel.Children.Add($gridPanel)
+    
+    # Add main panel to scroll viewer
+    $scrollViewer.Content = $homeMainPanel
+    
+    # Add scroll viewer to home content
+    $homeContent.Children.Add($scrollViewer)
 }
 
 [Console]::SetOut([System.IO.TextWriter]::Null)
@@ -3367,6 +3974,10 @@ $fpsTweaksButton.Add_Click({
 
 $latencyTweaksButton.Add_Click({
     FilterOptimizations "Latency"
+})
+
+$homeTab.Add_Click({
+    Show-Tab -TabName "HomeContent"
 })
 
 $optimizeTab.Add_Click({
@@ -3829,6 +4440,9 @@ $debloatButton.Add_Click({
     }
 })
 
+# Set up console redirection
+[System.Console]::SetOut($outputStream)
+
 # Override Write-Host to redirect to console output
 function Write-Host {
     param(
@@ -3864,10 +4478,11 @@ function Write-Host {
     
     $color = if ($ForegroundColor) { $colorMap[$ForegroundColor.ToString()] } else { "#CCCCCC" }
     
-    # Also write to the original console
-    [Console]::WriteLine($Object)
-    
+    # Write to our custom console
     Write-ToConsole -Text $Object -Color $color
+    
+    # Also write to the original console for debugging
+    [Console]::WriteLine($Object)
 }
 
 # Override Write-Output to redirect to console output
@@ -3887,8 +4502,12 @@ function Write-Output {
     $Object
 }
 
+# Hide the PowerShell console window after setting up redirection
+Hide-PowerShellConsole
+
 # Show the default tab on startup
-Show-Tab -TabName "AppsContent"
+Update-HomeTabContent
+Show-Tab -TabName "HomeContent"
 
 # Show the window
 $window.ShowDialog() | Out-Null
