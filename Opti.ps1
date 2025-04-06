@@ -274,13 +274,6 @@ $apps = @{
         winget = "RARLab.WinRAR"
         choco = "winrar"
     }
-    "OneDrive" = @{
-        content = "OneDrive"
-        description = "OneDrive is a cloud storage service provided by Microsoft, allowing users to store and share files securely across devices."
-        link = "https://onedrive.live.com/"
-        winget = "Microsoft.OneDrive"
-        choco = "onedrive"
-    }
     "ISLC" = @{
         content = "ISLC"
         description = "Intelligent Standby List Cleaner (ISLC) is a utility that helps manage and clear the standby list in Windows, potentially improving system performance."
@@ -387,13 +380,46 @@ $apps = @{
     choco = "protonvpn"
 }
 
-"NVIDIA Geforce Experience" = @{
-    content = "NVIDIA GeForce Experience"
-    description = "Game optimization and driver management tool with built-in streaming features."
-    link = "https://www.nvidia.com/en-us/geforce/geforce-experience/"
-    choco = "nvidia-app"
+    "OneDrive" = @{
+        content = "OneDrive"
+        description = "Cloud storage service for file syncing, backup and sharing across devices."
+        link = "https://onedrive.live.com/"
+        winget = "Microsoft.OneDrive"
+        choco = "onedrive"
+        postInstall = {
+            $regKeys = @(
+                "HKCR:\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}",
+                "HKCR:\Wow6432Node\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}"
+            )
+            foreach ($key in $regKeys) {
+                Set-ItemProperty -Path $key -Name "System.IsPinnedToNameSpaceTree" -Value 1
+            }
+        }
     }
-}
+
+    "Microsoft Teams" = @{
+        content = "Microsoft Teams"
+        description = "Comprehensive collaboration platform featuring chat, video meetings, file sharing, and app integration."
+        link = "https://www.microsoft.com/microsoft-teams/"
+        winget = "Microsoft.Teams"
+        choco = "microsoft-teams"
+    }
+
+    "Skype" = @{
+        content = "Skype"
+        description = "Popular communication tool for video calls, instant messaging, and voice chats."
+        link = "https://www.skype.com/"
+        winget = "Microsoft.Skype"
+        choco = "skype"
+    }
+
+    "NVIDIA Geforce Experience" = @{
+        content = "NVIDIA GeForce Experience"
+        description = "Game optimization and driver management tool with built-in streaming features."
+        link = "https://www.nvidia.com/en-us/geforce/geforce-experience/"
+        choco = "nvidia-app"
+        }
+    }
 
 $debloatItems = @{
 "Remove OneDrive" = @{
@@ -445,53 +471,6 @@ $debloatItems = @{
         Write-Host "OneDrive has been completely removed and blocked from reinstalling!" -ForegroundColor Green
         }
     }   
-        
-    "RemoveOutlook" = @{
-        content = "Remove Outlook"
-        description = "Will be uninstalled. Default Windows email client for mail, calendar, contacts and task management"
-        action = {
-            Write-Host "`nStarting Outlook Removal Process..." -ForegroundColor Cyan
-            
-            # Kill all Outlook processes
-            taskkill /F /IM outlook.exe /T
-            
-            # Remove via multiple methods for complete uninstallation
-            winget uninstall "Microsoft.OutlookForWindows"
-            Get-AppxPackage -Name "Microsoft.OutlookForWindows" -AllUsers | Remove-AppxPackage -AllUsers
-            Get-AppxPackage -Name "Microsoft.Office.Outlook" -AllUsers | Remove-AppxPackage -AllUsers
-            
-            # Remove using DISM
-            $packages = DISM /Online /Get-ProvisionedAppxPackages | Select-String "PackageName.*outlook"
-            foreach ($package in $packages) {
-                $packageName = ($package -split ": ")[1]
-                DISM /Online /Remove-ProvisionedAppxPackage /PackageName:$packageName
-            }
-            
-            # Clean installation directories
-            $outlookPaths = @(
-                "$env:LOCALAPPDATA\Microsoft\WindowsApps\Microsoft.OutlookForWindows_8wekyb3d8bbwe",
-                "$env:PROGRAMFILES\Microsoft Office\root\Office16\OUTLOOK.EXE",
-                "$env:PROGRAMFILES (x86)\Microsoft Office\root\Office16\OUTLOOK.EXE",
-                "$env:LOCALAPPDATA\Microsoft\Office\16.0\Outlook",
-                "$env:APPDATA\Microsoft\Outlook"
-            )
-            foreach ($path in $outlookPaths) {
-                Remove-Item -Path $path -Recurse -Force -ErrorAction SilentlyContinue
-            }
-            
-            # Block reinstallation and clean registry
-            $regPaths = @(
-                "HKLM:\SOFTWARE\Microsoft\Office\ClickToRun\REGISTRY\MACHINE\Software\Microsoft\Office\Outlook",
-                "HKCU:\Software\Microsoft\Office\Outlook",
-                "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\OUTLOOK.EXE"
-            )
-            foreach ($path in $regPaths) {
-                Remove-Item -Path $path -Recurse -Force -ErrorAction SilentlyContinue
-            }
-            
-            Write-Host "Outlook has been completely removed!" -ForegroundColor Green
-        }
-    }
     "RemoveTeams" = @{
         content = "Remove Teams"
         description = "Will be uninstalled. Video meetings, chat, calls, collaboration and file sharing platform"
@@ -621,16 +600,6 @@ $debloatItems = @{
             Write-Host "LinkedIn has been completely removed!" -ForegroundColor Green
         }
     }
-    "RemoveNews" = @{
-    content = "Remove News Feed"
-    description = "Will be uninstalled. Microsoft News feed and widgets"
-    action = {
-        Write-Host "Removing News Feed..." -ForegroundColor Cyan
-        Get-AppxPackage "Microsoft.BingNews" -AllUsers | Remove-AppxPackage -AllUsers
-        Write-Host "News Feed removed!" -ForegroundColor Green
-    }
-}
-
 "RemoveGetHelp" = @{
     content = "Remove Get Help"
     description = "Will be uninstalled. Microsoft support assistant"
@@ -650,16 +619,6 @@ $debloatItems = @{
         Write-Host "Get Started removed!" -ForegroundColor Green
     }
 }
-
-"RemoveMaps" = @{
-    content = "Remove Maps"
-    description = "Will be uninstalled. Offline Windows Maps app"
-    action = {
-        Write-Host "Removing Maps..." -ForegroundColor Cyan
-        Get-AppxPackage "Microsoft.WindowsMaps" -AllUsers | Remove-AppxPackage -AllUsers
-        Write-Host "Maps removed!" -ForegroundColor Green
-        }
-    }
 
 "RemoveFeedback" = @{
     content = "Remove Feedback Hub"
@@ -688,6 +647,14 @@ $debloatItems = @{
         Write-Host "Removing People app..." -ForegroundColor Cyan
         Get-AppxPackage "Microsoft.People" -AllUsers | Remove-AppxPackage -AllUsers
         Write-Host "People app removed!" -ForegroundColor Green
+        }
+    }
+
+    "RemoveSkype" = @{
+        content = "Remove Skype"
+        description = "Will be uninstalled. Video chat and messaging app"
+        action = {
+            Get-AppxPackage "Microsoft.Skype" -AllUsers | Remove-AppxPackage -AllUsers
         }
     }
 }
@@ -4671,10 +4638,17 @@ $installButton.Add_Click({
 
             if ($app.winget) {
                 Write-Host "Attempting installation with winget..." -ForegroundColor Yellow
-                winget install -e --accept-source-agreements --accept-package-agreements $app.winget
-                Start-Sleep -Seconds 2
-
-                $installed = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*, HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | 
+                if ($app.winget -is [array]) {
+                    foreach ($package in $app.winget) {
+                        Write-Host "Installing package: $package" -ForegroundColor Yellow
+                        winget install -e --accept-source-agreements --accept-package-agreements $package
+                        Start-Sleep -Seconds 2
+                    }
+                } else {
+                    winget install -e --accept-source-agreements --accept-package-agreements $app.winget
+                    Start-Sleep -Seconds 2
+                }
+                $installed = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*, HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* |
                     Where-Object { $_.DisplayName -like "*$($app.content)*" }
                 
                 if ($installed) {
@@ -4799,12 +4773,18 @@ $uninstallButton.Add_Click({
             Write-Host "Uninstalling $($app.content)..." -ForegroundColor Yellow
 
             if ($app.winget) {
-                winget uninstall --exact $app.winget
-                Start-Sleep -Seconds 2
-
-                $stillInstalled = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*, HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | 
+                if ($app.winget -is [array]) {
+                    foreach ($package in $app.winget) {
+                        Write-Host "Uninstalling package: $package" -ForegroundColor Yellow
+                        winget uninstall --exact $package
+                        Start-Sleep -Seconds 2
+                    }
+                } else {
+                    winget uninstall --exact $app.winget
+                    Start-Sleep -Seconds 2
+                }
+                $stillInstalled = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*, HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* |
                     Where-Object { $_.DisplayName -like "*$($app.content)*" }
-
                 if (!$stillInstalled) {
                     Write-Host "$($app.content) uninstalled successfully with winget!" -ForegroundColor Green
                     Remove-AppTraces $app
