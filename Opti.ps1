@@ -307,21 +307,14 @@ $apps = @{
     description = "Game booster and optimization tool that helps improve gaming performance."
     link = "https://www.razer.com/cortex"
     winget = "Razer.Cortex"
-    choco = "razer-cortex"
-    }
-
-"AMD Radeon Software" = @{
-    content = "AMD Radeon Software"
-    description = "Complete software suite for AMD graphics cards with performance tuning and streaming features."
-    link = "https://www.amd.com/en/technologies/radeon-software"
-    winget = "AMD.RyzenMaster"
+    choco = "gamebooster"
     }
 
 "Streamlabs" = @{
     content = "Streamlabs"
     description = "All-in-one streaming app with custom overlays, alerts, and chat management."
     link = "https://streamlabs.com/"
-    winget = "Streamlabs.Streamlabs"
+    winget = "Streamlabs.StreamlabsOBS"
     choco = "streamlabs-obs"
     }
 
@@ -338,7 +331,6 @@ $apps = @{
     description = "All-in-one platform for SteelSeries gear configuration, performance monitoring, and game capture"
     link = "https://steelseries.com/gg"
     winget = "SteelSeries.GG"
-    choco = "steelseries-gg"
 }
 
 "Visual Studio Code" = @{
@@ -377,6 +369,7 @@ $apps = @{
     content = "Proton VPN"
     description = "When you use ProtonVPN to browse the web, your Internet connection is encrypted. By routing your connection through encrypted tunnels, ProtonVPNs advanced security features ensure that an attacker cannot eavesdrop on your connection. It also allows you to access websites that might be blocked in your country."
     link = "https://protonvpn.com/"
+    winget = "ProtonTechnologies.ProtonVPN"
     choco = "protonvpn"
 }
 
@@ -678,7 +671,7 @@ $optimizations = @{
                     "EnablePMTUDiscovery" = 1
                     "EnableRSS" = 1
                     "TcpTimedWaitDelay" = 0x1e
-                    "EnableWsd" = 0
+                    "EnableWsd" = 1
                     "GlobalMaxTcpWindowSize" = 0xffff
                     "TcpWindowSize" = 0xffff
                     "MaxConnectionsPer1_0Server" = 0xa
@@ -687,7 +680,7 @@ $optimizations = @{
                     "EnableTCPA" = 0
                     "Tcp1323Opts" = 1
                     "TcpCreateAndConnectTcbRateLimitDepth" = 0
-                    "TcpMaxDataRetransmissions" = 3
+                    "TcpMaxDataRetransmissions" = 5
                     "TcpMaxDupAcks" = 2
                     "TcpMaxSendFree" = 0xffff
                     "TcpNumConnections" = 0xfffffe
@@ -2202,6 +2195,57 @@ $optimizations = @{
         Write-Host "✓ Quick search functionality optimized" -ForegroundColor Yellow
         }
     }
+
+"Optimize Windows Appearance and Performance" = @{
+    content = "Optimize Windows Appearance and Performance"
+    description = "Disables visual effects for maximum performance while keeping font smoothing enabled"
+    category = "Windows"
+    action = {
+        Write-Host "`nOptimizing Windows visual effects..." -ForegroundColor Cyan
+
+        # Set visual effects to custom
+        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "VisualFXSetting" -Value 3
+
+        # Basic Animation Settings
+        Set-ItemProperty -Path "HKCU:\Control Panel\Desktop\WindowMetrics" -Name "MinAnimate" -Value 0                    # Animate controls and elements
+        Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "DragFullWindows" -Value 0                            # Show window contents while dragging
+
+        # Scroll and Menu Settings
+        Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "MenuShowDelay" -Value 0                              # Menu animation speed
+        Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "SmoothScroll" -Value 0                               # Smooth-scroll list boxes
+        Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "ComboBoxAnimation" -Value 0                          # Slide open combo boxes
+
+        # Explorer Advanced Settings
+        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarAnimations" -Value 0
+        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "IconsOnly" -Value 1
+        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ListviewAlphaSelect" -Value 0
+        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ListviewShadow" -Value 0
+
+        # DWM Settings
+        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\DWM" -Name "EnableAeroPeek" -Value 0
+        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\DWM" -Name "AlwaysHibernateThumbnails" -Value 0
+
+        # Animation Effects Settings
+        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "AnimateMinMax" -Value 0      # Animate windows minimize/maximize
+        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "MenuAnimation" -Value 0      # Fade or slide menus
+        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "TooltipAnimation" -Value 0   # Fade or slide tooltips
+        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "MouseShadow" -Value 0        # Show shadows under mouse
+        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "WindowsAnimation" -Value 0    # Window animation effects
+
+        # User Preferences Mask (Comprehensive Animation Settings)
+        Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "UserPreferencesMask" -Value ([byte[]](0x90,0x12,0x01,0x80,0x10,0x00,0x00,0x00)) -Type Binary
+
+        # Keep font smoothing enabled
+        Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "FontSmoothing" -Value "2"                            # Enable ClearType
+        Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "FontSmoothingType" -Value 2                          # ClearType
+
+        Write-Host "Windows visual effects successfully optimized!" -ForegroundColor Green
+        Write-Host "✓ All visual effects disabled except font smoothing" -ForegroundColor Yellow
+        Write-Host "✓ ClearType font smoothing remains enabled" -ForegroundColor Yellow
+        Write-Host "✓ System responsiveness optimized" -ForegroundColor Yellow
+        Write-Host "✓ Changes will take effect after next login" -ForegroundColor Yellow
+    }
+}
 
 "Ritzy's Gaming Powerplan" = @{
     content = "Ritzy's Gaming Powerplan"
